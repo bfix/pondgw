@@ -123,9 +123,8 @@ func main() {
 	mailMsgIn := make(chan MailMessage)
 	mailCtrl := make(chan int)
 	go PollMailServer(mailMsgIn, mailCtrl)
-
-	// TEST
-	//g.client.startKeyExchange("#1", "23MasterOfDesasterRulez!")
+	
+	//g.client.StartKeyExchange("#1", "23MasterOfDesasterRulez!")
 
 	heartbeat := time.NewTicker(6 * time.Hour)
 	for {

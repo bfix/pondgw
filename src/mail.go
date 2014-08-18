@@ -99,7 +99,7 @@ func InitMailModule() error {
  */
 func PollMailServer(ch chan<- MailMessage, ctrl <-chan int) {
 	logger.Println(logger.INFO, "Starting POP3 polling loop")
-	heartbeat := time.NewTicker(g.config.Email.Poll * time.Second)
+	heartbeat := time.NewTicker(g.config.Email.Poll * time.Minute)
 	for {
 		select {
 		case cmd := <-ctrl:
@@ -206,7 +206,9 @@ func HandleIncomingMailMessage(msg MailMessage) error {
  */
 func SendEmailRegSuccess(toAddr string) error {
 	type param struct {
-		Addr string
+		Addr   string
+		Id     string
+		Server string
 	}
 	tpl, err := template.ParseFiles(g.config.Tpls.EmailRegSuccess)
 	if err != nil {
@@ -214,7 +216,9 @@ func SendEmailRegSuccess(toAddr string) error {
 	}
 	out := new(bytes.Buffer)
 	if err = tpl.Execute(out, param{
-		Addr: g.config.Email.Address,
+		Addr:   g.config.Email.Address,
+		Id:     g.client.GetPublicId(),
+		Server: g.config.Pond.Home,
 	}); err != nil {
 		logger.Println(logger.ERROR, err.Error())
 		return err

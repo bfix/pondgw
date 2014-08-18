@@ -14,8 +14,8 @@ HOW TO SEND MESSAGES TO A POND USER:
 
 (4) Insert two lines at the top of the body to specify the recipient:
 
-    Identity:5f480f64c591a00ba0bc555bc8a95fb7c32606a7d800abd98eec476c490974e8
-    Server:4V6Q5M2AFLBW6UIYL2B5LMKDHEBA6HRHR6UIUU3VDQFNI3BHZAEQ@oum7argqrnlzpcro.onion
+    Identity:{{.Id}}
+    Server:{{.Server}}
     
 (5) Leave the subject empty and sign and encrypt the message before sending it to the gateway email address
 
