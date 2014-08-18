@@ -1,0 +1,32 @@
+{
+	"control": {
+		"port": 8765,
+		"allowed": "127.0.0.1"
+	},
+	
+	"database": {
+		"connect": "pondgw:pondgw@/pondgw?charset=utf8",
+		"insertMailUser": "insert into email(addr,pubkey) values(?,?)",
+		"selectMailUser": "select * from email where addr=?"
+	},
+
+	"proxy": "socks5://127.0.0.1:9050",
+	
+	"email": {
+		"pop3": "pops://pondgw:SubstituteWithRealPassword@your-mail.server.com:995",
+		"pollInterval": 600,
+		"smtp": "smtps://pondgw:SubstituteWithRealPassword@your-mail-server.com:465",
+		"address": "pondgw@your-mail-server.com"
+	},
+	
+	"pond": {
+		"home": "pondserver://22JUQKUHK5HO4ZOPM64JPYUQBCQJ4RXKSOPIHUXEVDJRH26C6HPT@w2wh2ahjj34dbgat.onion",
+		"stateFile": "pondgw.state",
+		"statePW": "SubstituteWithRealPassword"
+	},
+
+	"templates": {
+		"emailRegFailure": "EmailRegFailure.tpl",
+		"emailRegSuccess": "EmailRegSuccess.tpl"
+	}
+}
