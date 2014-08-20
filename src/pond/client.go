@@ -252,7 +252,7 @@ func (c *Client) Poll() {
 		var (
 			req    *pond.Request
 			server *Server
-			err error
+			err    error
 		)
 		useAnonymousIdentity := true
 		isFetch := false

@@ -1,0 +1,19 @@
+<html>
+	<head>
+		<title>Pond/EMail Gateway Registration (DEMO)</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<meta name="author" content="Bernd Fix <brf@hoi-polloi.org>"></meta>
+		<meta name="description" content="Captcha"></meta>
+		<meta name="robots" content="INDEX,FOLLOW"></meta>
+		<meta name="revisit-after" Content="20 days"></meta>
+		<link rel="stylesheet" type="text/css" href="/pondgw.css"></link>
+	</head>
+	<body>
+		<div class="center">
+			<h1>Pond/EMail Gateway Registration page</h1>
+			
+			<p>You have entered the wrong CAPTCHA value.
+			<a href="/">Try again...</a></p>
+		</div>
+	</body>
+</html>

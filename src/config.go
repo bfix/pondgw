@@ -56,8 +56,11 @@ type PondConfig struct {
  * Message templates
  */
 type TemplateConfig struct {
-	EmailRegFailure string `json:"emailRegFailure"`
-	EmailRegSuccess string `json:"emailRegSuccess"`
+	MailRegFailure string `json:"mailRegFailure"`
+	MailRegSuccess string `json:"mailRegSuccess"`
+	MailPending    string `json:"mailPending"`
+	ValidateMail   string `json:"validateMail"`
+	PondRegSuccess string `json:"pondRegSuccess"`
 }
 
 //---------------------------------------------------------------------
@@ -65,9 +68,26 @@ type TemplateConfig struct {
  * Database-related configuration settings
  */
 type DatabaseConfig struct {
-	Connect        string `json:"connect"` // database connection string
-	InsertMailUser string `json:"insertMailUser"`
-	SelectMailUser string `json:"selectMailUser"`
+	Connect          string `json:"connect"` // database connection string
+	InsertMailUser   string `json:"insertMailUser"`
+	SelectMailUser   string `json:"selectMailUser"`
+	UpdateMailStatus string `json:"updateMailStatus"`
+	InsertPondUser   string `json:"insertPondUser"`
+	SelectPondUser   string `json:"selectPondUser"`
+	UpdatePondStatus string `json:"updatePondStatus"`
+}
+
+//---------------------------------------------------------------------
+/*
+ * Web-interface settings
+ */
+type WebConfig struct {
+	Host        string `json:"host"`
+	Key         string `json:"key"`
+	Cert        string `json:"cert"`
+	FormPage    string `json:"formPage"`
+	ErrorPage   string `json:"errorPage"`
+	CaptchaFail string `json:"captchaFail"`
 }
 
 //---------------------------------------------------------------------
@@ -86,6 +106,7 @@ type ControlConfig struct {
 type Config struct {
 	Control  *ControlConfig  `json:"control"`
 	Database *DatabaseConfig `json:"database"`
+	Web      *WebConfig      `json:"webif"`
 	Proxy    string          `json:"proxy"` // SOCKS5 URL
 	Email    *EmailConfig    `json:"email"`
 	Pond     *PondConfig     `json:"pond"`

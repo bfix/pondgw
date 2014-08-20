@@ -13,12 +13,13 @@ import (
 	"github.com/bfix/gospel/logger"
 )
 
-func (c *Client) StartKeyExchange(name, sharedSecret string) error {
+func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 	if !panda.IsAcceptableSecretString(sharedSecret) {
+		c.log("Invalid PANDA shared secret")
 		return errors.New("Invalid PANDA shared secret")
 	}
 	contact := &Contact{
-		name:      name,
+		name:      peer,
 		isPending: true,
 		id:        randUInt64(),
 	}
@@ -61,7 +62,7 @@ func (c *Client) newKeyExchange(contact *Contact) error {
 	kx := &pond.KeyExchange{
 		PublicKey:      c.public[:],
 		IdentityPublic: c.id.public[:],
-		Server:         proto.String(c.server.addr),
+		Server:         proto.String(c.server.url),
 		Group:          contact.groupKey.Group.Marshal(),
 		GroupKey:       contact.groupKey.Marshal(),
 		Generation:     proto.Uint32(c.generation),

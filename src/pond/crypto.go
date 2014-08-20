@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	nonceLen               = 24
-	ephemeralBlockLen      = nonceLen + 32 + box.Overhead
+	nonceLen          = 24
+	ephemeralBlockLen = nonceLen + 32 + box.Overhead
 )
 
 var revocationSignaturePrefix = []byte("revocation\x00")

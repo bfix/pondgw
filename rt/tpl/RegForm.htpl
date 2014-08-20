@@ -1,0 +1,85 @@
+<html>
+	<head>
+		<title>Pond/EMail Gateway Registration (DEMO)</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<meta name="author" content="Bernd Fix <brf@hoi-polloi.org>"></meta>
+		<meta name="description" content="Registration webpage"></meta>
+		<meta name="robots" content="INDEX,FOLLOW"></meta>
+		<meta name="revisit-after" Content="20 days"></meta>
+		<link rel="stylesheet" type="text/css" href="/pondgw.css"></link>
+	</head>
+	<body>
+		<div class="center">
+			<h1>Pond/EMail Gateway Registration page</h1>
+			<p>Please choose the registration mode (<b>EMail</b> or <b>Pond</b>) and provide
+			the required information:</p>
+		
+			<ul class="tabs">
+     			<li>
+       				<input type="radio" checked name="tabs" id="tab1">
+       				<label class="tab" for="tab1">Pond</label>
+       				<div id="tab-content1" class="tab-content animated fadeIn">
+						<form action="register/pond" method="post">
+	       					<p>Please enter the shared secret for the initial key exchange with
+	       					the Pond/EMail gateway and start the PANDA process from your Pond
+	       					client:</p>
+	       					<p>
+	       						<input type="text" size="64" id="sharedSecret" required>
+		       					<label class="form" for="sharedSecret">&larr; Shared Secret</label>
+	       					</p	>
+		       				<p>Once the key exchange is complete, you can 
+		       				<a href="pond.html">start sending messages to registered EMail users</a>.</p>
+
+							<div>
+								<p>Type the numbers you see in the picture below:</p>
+								<p><img id="image" src="/captcha/{{.CaptchaId}}.png" alt="Captcha image"></p>
+								<a href="#" onclick="reload()">Reload</a>
+								<input type="hidden" name="captchaId" value="{{.CaptchaId}}"><br>
+								<input name="captchaSolution">
+		       				</div>
+				       		<p>
+				       			<input type="submit">
+				       		</p>
+				       	</form>
+       				</div>
+       			</li>
+       			<li>
+       				<input type="radio" checked name="tabs" id="tab2">
+       				<label class="tab" for="tab2">EMail</label>
+       				<div id="tab-content2" class="tab-content animated fadeIn">
+						<form action="register/email" mathod="post">
+	       					<p>Please enter your email address and upload your public
+	       					GnuPG key to register with the Pond/EMail gateway:</p>
+	       					<p>
+	       						<input type="text" size="42" id="emailAddress" required>
+		       					<label class="form" for="emailAddress">&larr; Email address</label>
+	       					</p>
+	       					<p>
+		       					<input id="publicKey" type="file" size="32" maxlength="1000000" accept="application/pgp-keys" required>
+		       					<label for="publicKey"><b>&larr; Public GnuPG key</b></label>
+		       				</p>
+		       				<p>You will receive an email notification about your registration.
+		       				Once the registration is complete, you can 
+		       				<a href="email.html">start sending messages to registered Pond users</a>.
+		       				If you do not receive a notification email within reasonable time,
+		       				your registration may have failed and you should try again. Please note: you
+		       				will <b>not</b> receive an email in case of an already registered
+		       				email address!</p>
+		       				
+							<div>
+								<p>Type the numbers you see in the picture below:</p>
+								<p><img id="image" src="/captcha/{{.CaptchaId}}.png" alt="Captcha image"></p>
+								<a href="#" onclick="reload()">Reload</a>
+								<input type="hidden" name="captchaId" value="{{.CaptchaId}}"><br>
+								<input name="captchaSolution">
+		       				</div>
+				       		<p>
+				       			<input type="submit">
+				       		</p>
+				       	</form>
+       				</div>
+       			</li>
+       		</ul>
+		</div>
+	</body>
+</html>

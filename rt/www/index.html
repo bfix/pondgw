@@ -1,0 +1,69 @@
+<html>
+	<head>
+		<title>Pond/EMail Gateway Registration (DEMO)</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<meta name="author" content="Bernd Fix <brf@hoi-polloi.org>"></meta>
+		<meta name="description" content="Pond registration"></meta>
+		<meta name="robots" content="INDEX,FOLLOW"></meta>
+		<meta name="revisit-after" Content="20 days"></meta>
+		<link rel="stylesheet" type="text/css" href="/pondgw.css"></link>
+	</head>
+	<body>
+		<div class="center">
+			<h1>Pond/EMail Gateway </h1>
+			
+			<h2>What is this?</h2>
+			<p>This is a <span class="emph">highly experimental version (&alpha; stage)</span>
+			of a message gateway between Pond and EMail accounts.</p>
+			
+			<h2>What is Pond?</h2>
+			<p><a href="https://pond.imperialviolet.org/" target="_blank">Pond</a> is
+			a new, highly secure, asynchronous messaging application that does not create
+			traffic profiles between peers that can be exploited by adversaries -
+			even if these adversaries are able to monitor network traffic on a global
+			scale. The messages are send <a href="https://en.wikipedia.org/wiki/Off-the-Record_Messaging"
+			target="_blank">"off-the-record"</a>. We consider it to be the <i>Next
+			Generation EMail Protocol</i>.</p>
+			
+			<h2>What is the use of a gateway?</h2>
+			<p>It is the intention of the gateway operators to bring more EMail users
+			to Pond because it is the superior way of a secure message exchange over
+			EMail - even if you use GnuPG to encrypt your EMail messages. The
+			main argument against a transition to Pond heard from current EMailers
+			is that Pond is an isolated island and they need to be able to send
+			messages to other EMailers as long as those do not use Pond.</p>
+			
+			<p>Sounds like a hen/egg problem? <i>"I will not change to Pond as long as
+			my peers don't change to Pond..."</i> - Indeed it is. So to ease the
+			transition for users to Pond the gateway will allow message exchange
+			between Pond users and EMailers.</p>
+			
+			<h2>Is it secure to use the gateway?</h2>
+			<p>Of course it must be noticed that messages passing through the gateway
+			do not have the same high level of security and privacy as messages
+			exchanged between Pond users directly - they only have "EMail level
+			security". The communication between the gateway and the EMail account
+			is visible and therefore certainly subject to surveillance. The Pond side
+			of the exchange is better off and keeps most of the advantages - one
+			more reason to change to Pond as soon as possible...</p>
+			
+			<p>You should also encrypt messages going through the gateway with an
+			additional layer to prevent the gateway to see the message content. You
+			need to negotiate and set up such encryption process with your peer
+			before you start exchanging messages.
+			
+			<h2>How can I use the gateway?</h2>
+			<p>So if your are a Pond or EMail user and want to exchange messages
+			across borders, please register.</p>
+			
+			<div class="button">
+				<p class="center"><a class="button" href="/register">Register me at the gateway</a></p>
+			</div>
+			
+			<p><b>DISCLAIMER: The gateway service may be unavailable or may suffer loss of data
+			at any time. Please be patient with us if it fails or delivers unexpected
+			results. Nonetheless: please register and use the service so we can
+			improve the gateway to serve you all better in the future.</b>
+		</div>
+	</body>
+</html>

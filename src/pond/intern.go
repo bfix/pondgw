@@ -2,9 +2,13 @@ package pond
 
 import (
 	"bytes"
+	"code.google.com/p/go.crypto/curve25519"
 	"code.google.com/p/go.crypto/nacl/box"
 	"code.google.com/p/goprotobuf/proto"
+	"crypto/rand"
 	"crypto/sha256"
+	"encoding/base32"
+	"encoding/binary"
 	"errors"
 	"github.com/agl/ed25519"
 	"github.com/agl/pond/bbssig"
@@ -13,9 +17,72 @@ import (
 	"github.com/agl/pond/transport"
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
+	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
+
+func NewServer(host string) (*Server, error) {
+	url, err := url.Parse(host)
+	if err != nil {
+		return nil, err
+	}
+	if url.Scheme != "pondserver" {
+		return nil, errors.New("bad URL scheme, should be pondserver")
+	}
+	if url.User == nil || len(url.User.Username()) == 0 {
+		return nil, errors.New("no server ID in URL")
+	}
+	server := new(Server)
+	server.url = host
+	server.id, err = NewPublicIdentityFromBase32(url.User.Username())
+	if err != nil {
+		return nil, err
+	}
+	server.addr = url.Host
+	if strings.ContainsRune(server.addr, ':') {
+		return nil, errors.New("URL contains a port number")
+	}
+	if !strings.HasSuffix(server.addr, ".onion") {
+		return nil, errors.New("host is not a .onion address")
+	}
+	server.port = 16333
+	return server, nil
+}
+
+func NewPublicIdentityFromBase32(s string) (*PublicIdentity, error) {
+	id := new(PublicIdentity)
+	for len(s)%8 != 0 {
+		s += "="
+	}
+	v, err := base32.StdEncoding.DecodeString(s)
+	if err == nil {
+		if len(v) != 32 {
+			return nil, errors.New("Invalid public identity")
+		}
+		copy(id.public[:], v)
+		return id, nil
+	}
+	return nil, err
+}
+
+func NewRandomIdentity() *Identity {
+	var secret [32]byte
+	copy(secret[:], randBytes(32))
+	id, _ := NewIdentity(secret[:])
+	return id
+}
+
+func NewIdentity(secret []byte) (*Identity, error) {
+	id := new(Identity)
+	if len(secret) != len(id.secret) {
+		return nil, errors.New("Invalid secret for new identity")
+	}
+	copy(id.secret[:], secret[:])
+	curve25519.ScalarBaseMult(&id.public, &id.secret)
+	return id, nil
+}
 
 func (c *Client) init() {
 	c.contacts = make(map[uint64]*Contact)
@@ -273,4 +340,20 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 		c.deleteOutboxMsg(msg.id)
 	}
 	c.SaveState(false)
+}
+
+func randBytes(size int) []byte {
+	data := make([]byte, size)
+	rand.Read(data)
+	return data
+}
+
+func randUInt32() uint32 {
+	return uint32(randUInt64())
+}
+
+func randUInt64() uint64 {
+	buf := randBytes(8)
+	res, _ := binary.Varint(buf)
+	return uint64(res)
 }

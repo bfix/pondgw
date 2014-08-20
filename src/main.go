@@ -119,12 +119,14 @@ func main() {
 	logger.Printf(logger.INFO, "Starting control daemon on port %d...\n", g.config.Control.Port)
 	network.RunService("tcp", ":"+strconv.Itoa(g.config.Control.Port), ctrlList)
 
+	// run web interface
+	logger.Printf(logger.INFO, "Starting web interface on %s...\n", g.config.Web.Host)
+	go httpsServe()
+
 	// prepare and run handlers
 	mailMsgIn := make(chan MailMessage)
 	mailCtrl := make(chan int)
 	go PollMailServer(mailMsgIn, mailCtrl)
-	
-	//g.client.StartKeyExchange("#1", "23MasterOfDesasterRulez!")
 
 	heartbeat := time.NewTicker(6 * time.Hour)
 	for {

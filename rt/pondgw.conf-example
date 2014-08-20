@@ -4,10 +4,23 @@
 		"allowed": "127.0.0.1"
 	},
 	
+	"webif": {
+		"host": "localhost:10443",
+		"key": "webif.key",
+		"cert": "cert.pem",
+		"formPage": "tpl/RegForm.htpl",		
+		"errorPage": "tpl/Error.htpl",
+		"captchaFail": "tpl/CaptchaFail.htpl"
+	},
+	
 	"database": {
 		"connect": "pondgw:pondgw@/pondgw?charset=utf8",
-		"insertMailUser": "insert into email(addr,pubkey) values(?,?)",
+		"insertMailUser": "insert into email(addr,pubkey,status,token) values(?,?,?,?)",
 		"selectMailUser": "select * from email where addr=?"
+		"updateMailStatus": "update email set status=? where addr=?",
+		"insertPondUser": "insert into pond(peer,status) values(?,?)",
+		"selectPondUser": "select * from pond where peer=?",
+		"updatePondStatus": "update pond set status=? where peer=?"
 	},
 
 	"proxy": "socks5://127.0.0.1:9050",
@@ -26,7 +39,10 @@
 	},
 
 	"templates": {
-		"emailRegFailure": "EmailRegFailure.tpl",
-		"emailRegSuccess": "EmailRegSuccess.tpl"
+		"mailRegFailure": "tpl/MailRegFailure.tpl",
+		"mailRegSuccess": "tpl/MailRegSuccess.tpl",
+		"mailPending": "tpl/MailPending.htpl",
+		"validateEmail": "tpl/ValidateEmail.tpl",
+		"pondRegSuccess": "tpl/PondRegSuccess.htpl"
 	}
 }

@@ -1,0 +1,25 @@
+<html>
+	<head>
+		<title>Pond/EMail Gateway Registration (DEMO)</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<meta name="author" content="Bernd Fix <brf@hoi-polloi.org>"></meta>
+		<meta name="description" content="Pond registration"></meta>
+		<meta name="robots" content="INDEX,FOLLOW"></meta>
+		<meta name="revisit-after" Content="20 days"></meta>
+		<link rel="stylesheet" type="text/css" href="/pondgw.css"></link>
+	</head>
+	<body>
+		<div class="center">
+			<h1>Pond/EMail Gateway Registration page</h1>
+			
+			<p>A confirmation email has been sent to</p>
+			
+			<p><span class="emph">{{.Addr}}</span></p>
+			
+			<p>The email contains a confirmation link that finishes your
+			registration process. Until this confirmation has been received
+			by the gateway, you will not be able to use the gateway functionality.
+			The pending registration <span class="emph">expires in two days</span>.</p>
+		</div>
+	</body>
+</html>

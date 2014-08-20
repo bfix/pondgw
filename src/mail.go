@@ -190,7 +190,7 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 			if err != nil {
 				return err
 			}
-			if err = RegisterEmailUser(addr.Address, key); err != nil {
+			if err = RegisterMailUser(addr.Address, key); err != nil {
 				return err
 			}
 		}
@@ -200,114 +200,46 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 
 //---------------------------------------------------------------------
 /*
- * Send a "successful registration" mail to user.
+ * Send a notification mail to user.
  * @param toAddr string - mail address of user
+ * @param key []byte - public key of user (OpenPGP armored ASCII format)
+ * @param tplName string - name of template file for email
+ * @param data interface{} - template parameters
  * @return error - error instance or nil
  */
-func SendEmailRegSuccess(toAddr string) error {
-	type param struct {
-		Addr   string
-		Id     string
-		Server string
-	}
-	tpl, err := template.ParseFiles(g.config.Tpls.EmailRegSuccess)
+func SendNotificationEmail(toAddr string, key []byte, tplName string, data interface{}) error {
+	tpl, err := template.ParseFiles(tplName)
 	if err != nil {
 		return err
 	}
 	out := new(bytes.Buffer)
-	if err = tpl.Execute(out, param{
-		Addr:   g.config.Email.Address,
-		Id:     g.client.GetPublicId(),
-		Server: g.config.Pond.Home,
-	}); err != nil {
+	if err = tpl.Execute(out, data); err != nil {
 		logger.Println(logger.ERROR, err.Error())
 		return err
 	}
-	buf, err := CreateMessageWithPublicKeyAttached(out.Bytes(), g.pubkey)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	userKey, err := GetEmailUserKey(toAddr)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	msg, err := network.EncryptMailMessage(userKey, buf)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	if err = network.SendMailMessage(g.config.Email.SMTP, g.config.Proxy, g.config.Email.Address, toAddr, msg); err != nil {
-		logger.Println(logger.ERROR, err.Error())
-	}
-	return err
-}
-
-//---------------------------------------------------------------------
-/*
- * Send a "registration failed" mail to user.
- * @param toAddr string - mail address of user
- * @param rc string - reason for failure
- * @return error - error instance or nil
- */
-func SendEmailRegFailure(toAddr string, rc string) error {
-	type param struct {
-		Addr string
-		Msg  string
-		Key  string
-		User string
-	}
-	userKey, err := GetEmailUserKey(toAddr)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	tpl, err := template.ParseFiles(g.config.Tpls.EmailRegFailure)
-	if err != nil {
-		return err
-	}
-	out := new(bytes.Buffer)
-	if err = tpl.Execute(out, param{
-		Addr: g.config.Email.Address,
-		Msg:  rc,
-		Key:  string(userKey),
-		User: toAddr,
-	}); err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	buf, err := CreateMessageWithPublicKeyAttached(out.Bytes(), g.pubkey)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	msg, err := network.EncryptMailMessage(userKey, buf)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	if err = network.SendMailMessage(g.config.Email.SMTP, g.config.Proxy, g.config.Email.Address, toAddr, msg); err != nil {
-		logger.Println(logger.ERROR, err.Error())
-	}
-	return err
-}
-
-//---------------------------------------------------------------------
-/*
- * Create multipart message with attached public key.
- * @param body []byte - mail body
- * @param key []byte - public key to be attached
- * @return []byte - resulting SMTP mail body
- * @return error - error instance or nil
- */
-func CreateMessageWithPublicKeyAttached(body, key []byte) ([]byte, error) {
-
 	att := new(network.MailAttachment)
 	att.Header = textproto.MIMEHeader{}
 	att.Header.Set("Content-Type", "application/pgp-keys;\n name=\"pubkey.asc\"")
 	att.Header.Set("Content-Transfer-Encoding", "7bit")
 	att.Header.Set("Content-Disposition", "attachment;\n filename=\"pubkey.asc\"")
-	att.Data = key
-	return network.CreateMailMessage(body, []*network.MailAttachment{att})
+	att.Data = g.pubkey
+	buf, err := network.CreateMailMessage(out.Bytes(), []*network.MailAttachment{att})
+	if err != nil {
+		logger.Println(logger.ERROR, err.Error())
+		return err
+	}
+	userData, err := GetMailUserData(toAddr)
+	if err != nil {
+		logger.Println(logger.ERROR, err.Error())
+		return err
+	}
+	msg, err := network.EncryptMailMessage(userData.PubKey, buf)
+	if err != nil {
+		logger.Println(logger.ERROR, err.Error())
+		return err
+	}
+	if err = network.SendMailMessage(g.config.Email.SMTP, g.config.Proxy, g.config.Email.Address, toAddr, msg); err != nil {
+		logger.Println(logger.ERROR, err.Error())
+	}
+	return err
 }
