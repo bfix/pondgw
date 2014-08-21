@@ -5,19 +5,23 @@
 	},
 	
 	"webif": {
-		"host": "localhost:10443",
+		"listen": "127.0.0.1:10443",
+		"host": "https://127.0.0.1:10443",
 		"key": "webif.key",
 		"cert": "cert.pem",
-		"formPage": "tpl/RegForm.htpl",		
-		"errorPage": "tpl/Error.htpl",
-		"captchaFail": "tpl/CaptchaFail.htpl"
+		"formPage": "www/RegForm.htpl",		
+		"errorPage": "www/Error.htpl",
+		"captchaFail": "www/captcha/CaptchaFail.htpl"
 	},
 	
 	"database": {
 		"connect": "pondgw:pondgw@/pondgw?charset=utf8",
 		"insertMailUser": "insert into email(addr,pubkey,status,token) values(?,?,?,?)",
-		"selectMailUser": "select * from email where addr=?"
+		"selectMailUser": "select * from email where addr=?",
+		"selectMailToken": "select * from email where token=?",
 		"updateMailStatus": "update email set status=? where addr=?",
+		"dropMailToken": "update email set token='' where addr=?",
+		"dropMailUser": "delete from email where addr=?",
 		"insertPondUser": "insert into pond(peer,status) values(?,?)",
 		"selectPondUser": "select * from pond where peer=?",
 		"updatePondStatus": "update pond set status=? where peer=?"
@@ -29,20 +33,24 @@
 		"pop3": "pops://pondgw:SubstituteWithRealPassword@your-mail.server.com:995",
 		"pollInterval": 600,
 		"smtp": "smtps://pondgw:SubstituteWithRealPassword@your-mail-server.com:465",
-		"address": "pondgw@your-mail-server.com"
+		"address": "pondgw@your-mail-server.com",
+		"privateKey": "private.asc",
+		"passphrase": "SubstituteWithRealPassword"
 	},
 	
 	"pond": {
 		"home": "pondserver://22JUQKUHK5HO4ZOPM64JPYUQBCQJ4RXKSOPIHUXEVDJRH26C6HPT@w2wh2ahjj34dbgat.onion",
 		"stateFile": "pondgw.state",
 		"statePW": "SubstituteWithRealPassword"
+		"panda": "https://127.0.0.1:11443/exchange",
 	},
 
 	"templates": {
 		"mailRegFailure": "tpl/MailRegFailure.tpl",
 		"mailRegSuccess": "tpl/MailRegSuccess.tpl",
-		"mailPending": "tpl/MailPending.htpl",
-		"validateEmail": "tpl/ValidateEmail.tpl",
-		"pondRegSuccess": "tpl/PondRegSuccess.htpl"
+		"validateMail": "tpl/ValidateMail.tpl",
+		"mailPending": "www/register/MailPending.htpl",
+		"mailConfirm": "www/confirm/MailConfirm.htpl",
+		"pondRegSuccess": "www/register/PondRegSuccess.htpl"
 	}
 }

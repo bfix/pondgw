@@ -9,6 +9,7 @@ import (
 	"github.com/agl/ed25519/extra25519"
 	"github.com/agl/pond/bbssig"
 	"github.com/agl/pond/panda"
+	panda_proto "github.com/agl/pond/panda/proto"
 	pond "github.com/agl/pond/protos"
 	"github.com/bfix/gospel/logger"
 )
@@ -23,14 +24,13 @@ func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 		isPending: true,
 		id:        randUInt64(),
 	}
-	c.newKeyExchange(contact)
-
-	stack := &panda.CardStack{
-		NumDecks: 1,
+	if err := c.newKeyExchange(contact); err != nil {
+		c.log("Startup key exchange failed with " + err.Error())
+		return err
 	}
+
 	secret := panda.SharedSecret{
 		Secret: sharedSecret,
-		Cards:  *stack,
 	}
 
 	mp := c.getNewPanda()
@@ -40,8 +40,8 @@ func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 	if err != nil {
 		return err
 	}
-	kx.Testing = false
 	contact.pandaKeyExchange = kx.Marshal()
+	printKeyExchange(contact.pandaKeyExchange)
 	contact.kxsBytes = nil
 
 	c.SaveState(false)
@@ -103,6 +103,7 @@ func (c *Client) runPANDA(serialisedKeyExchange []byte, id uint64, name string, 
 
 	if err == nil {
 		logger.Printf(logger.INFO, "Performing key exchange...")
+		printKeyExchange(kx.Marshal())
 		result, err = kx.Run()
 	}
 	if err == panda.ShutdownErr {
@@ -226,4 +227,13 @@ func (contact *Contact) processKeyExchange(kxsBytes []byte, testing, simulateOld
 	contact.generation = *kx.Generation
 
 	return nil
+}
+
+func printKeyExchange(buf []byte) {
+	var p panda_proto.KeyExchange
+	if err := proto.Unmarshal(buf, &p); err != nil {
+		logger.Println(logger.INFO, "KeyExchange: "+err.Error())
+		return
+	}
+	logger.Println(logger.INFO, "KeyExchange: "+p.String())
 }

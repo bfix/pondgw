@@ -36,6 +36,7 @@ import (
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
 	"io"
+	"runtime"
 	"strconv"
 	"time"
 )
@@ -46,10 +47,10 @@ import (
 type Global struct {
 	configFile string
 	logFile    string
+	verbosity  int
 	config     *Config
 	prng       io.Reader
 
-	prvkey   string
 	identity *openpgp.Entity
 	pubkey   []byte
 
@@ -71,7 +72,7 @@ var (
 func init() {
 	flag.StringVar(&g.configFile, "c", "pondgw.conf", "configuration file")
 	flag.StringVar(&g.logFile, "l", "", "log file")
-	flag.StringVar(&g.prvkey, "k", "private.asc", "private key file")
+	flag.IntVar(&g.verbosity, "v", logger.INFO, "verbosity [0..7]")
 	flag.Parse()
 }
 
@@ -84,10 +85,15 @@ func main() {
 	fmt.Println("POND/EMAIL GATEWAY,    v0.1")
 	fmt.Println("(c) 2014 by Bernd Fix   >Y<")
 	fmt.Println("================================")
+	fmt.Println()
+	fmt.Println("GOARCH: " + runtime.GOARCH)
+	fmt.Println("GOOS  : " + runtime.GOOS)
+	fmt.Println()
 
 	if len(g.logFile) > 0 {
 		logger.LogToFile(g.logFile)
 	}
+	logger.SetLogLevel(g.verbosity)
 
 	// handle configuration file
 	logger.Println(logger.INFO, "Reading configuration file '"+g.configFile+"'...")
@@ -127,6 +133,8 @@ func main() {
 	mailMsgIn := make(chan MailMessage)
 	mailCtrl := make(chan int)
 	go PollMailServer(mailMsgIn, mailCtrl)
+
+	//g.client.StartKeyExchange("test", "blahdroenfasel")
 
 	heartbeat := time.NewTicker(6 * time.Hour)
 	for {

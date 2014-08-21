@@ -25,7 +25,6 @@ package main
 import (
 	"encoding/json"
 	"io/ioutil"
-	"time"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -35,10 +34,12 @@ import (
  * Config data for POP3 server
  */
 type EmailConfig struct {
-	POP3    string        `json:"pop3"` // POP3 URL
-	SMTP    string        `json:"smtp"` // SMTP URL
-	Address string        `json:"address"`
-	Poll    time.Duration `json:"pollInterval"`
+	POP3       string `json:"pop3"` // POP3 URL
+	SMTP       string `json:"smtp"` // SMTP URL
+	Address    string `json:"address"`
+	Poll       int    `json:"pollInterval"`
+	PrivateKey string `json:"privateKey"`
+	Passphrase string `json:"passphrase"`
 }
 
 //---------------------------------------------------------------------
@@ -49,6 +50,7 @@ type PondConfig struct {
 	Home      string `json:"home"`
 	StateFile string `json:"stateFile"`
 	StatePW   string `json:"statePW"`
+	Panda     string `json:"panda"`
 }
 
 //---------------------------------------------------------------------
@@ -61,6 +63,7 @@ type TemplateConfig struct {
 	MailPending    string `json:"mailPending"`
 	ValidateMail   string `json:"validateMail"`
 	PondRegSuccess string `json:"pondRegSuccess"`
+	MailConfirm    string `json:"mailConfirm"`
 }
 
 //---------------------------------------------------------------------
@@ -71,6 +74,9 @@ type DatabaseConfig struct {
 	Connect          string `json:"connect"` // database connection string
 	InsertMailUser   string `json:"insertMailUser"`
 	SelectMailUser   string `json:"selectMailUser"`
+	SelectMailToken  string `json:"selectMailToken"`
+	DropMailToken    string `json:"dropMailToken"`
+	DropMailUser     string `json:"dropMailUser"`
 	UpdateMailStatus string `json:"updateMailStatus"`
 	InsertPondUser   string `json:"insertPondUser"`
 	SelectPondUser   string `json:"selectPondUser"`
@@ -82,6 +88,7 @@ type DatabaseConfig struct {
  * Web-interface settings
  */
 type WebConfig struct {
+	Listen      string `json:"listen"`
 	Host        string `json:"host"`
 	Key         string `json:"key"`
 	Cert        string `json:"cert"`

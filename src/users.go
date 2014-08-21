@@ -24,8 +24,8 @@ package main
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/openpgp"
-	"crypto/rand"
+	"code.google.com/p/go.crypto/openpgp/armor"
+	"code.google.com/p/go.crypto/openpgp/packet"
 	"database/sql"
 	"encoding/hex"
 	"errors"
@@ -94,7 +94,39 @@ func GetMailUserData(toAddr string) (*MailUserData, error) {
 		return nil, err
 	}
 	if !rows.Next() {
-		logger.Println(logger.WARN, "No registered user '"+toAddr+"'")
+		logger.Println(logger.INFO, "No registered user '"+toAddr+"'")
+		return nil, errNoSuchUser
+	}
+	data := new(MailUserData)
+	var ts mysql.NullTime
+	if err = rows.Scan(&data.Id, &ts, &data.Status, &data.Address, &data.PubKey, &data.Token); err != nil {
+		logger.Println(logger.ERROR, "Unable to select user record: "+err.Error())
+		return nil, err
+	}
+	if ts.Valid {
+		data.Timestamp = ts.Time
+	} else {
+		logger.Printf(logger.ERROR, "Invalid timestamp value for mail record: %d\n", data.Id)
+		return nil, err
+	}
+	return data, nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Get the data record for a registered mail user by token
+ * @param token string - confirmation token
+ * @return *MailUserData - mail user data record
+ * @return error - error instance or nil
+ */
+func GetMailUserDataByToken(token string) (*MailUserData, error) {
+	rows, err := g.db.Query(g.config.Database.SelectMailToken, token)
+	if err != nil {
+		logger.Println(logger.ERROR, "Unable to query registered user table (email)")
+		return nil, err
+	}
+	if !rows.Next() {
+		logger.Println(logger.WARN, "No registered user for token '"+token+"'")
 		return nil, errNoSuchUser
 	}
 	data := new(MailUserData)
@@ -121,12 +153,8 @@ func GetMailUserData(toAddr string) (*MailUserData, error) {
  * @return error - error instance or nil
  */
 func InsertMailUserData(toAddr string, key []byte, status int) (int, string, error) {
-	el, err := openpgp.ReadArmoredKeyRing(bytes.NewBuffer(key))
-	if err != nil || len(el) != 1 {
-		return 0, "", errInvalidPubKey
-	}
-	pk := el[0].PrimaryKey
-	if pk == nil {
+	_, err := GetPublicKey(key)
+	if err != nil {
 		return 0, "", errInvalidPubKey
 	}
 	rows, err := g.db.Query(g.config.Database.SelectMailUser, toAddr)
@@ -141,7 +169,7 @@ func InsertMailUserData(toAddr string, key []byte, status int) (int, string, err
 	if !rows.Next() {
 		logger.Println(logger.INFO, "Adding user '"+toAddr+"'")
 		buf := make([]byte, 16)
-		n, err := rand.Read(buf)
+		n, err := g.prng.Read(buf)
 		if err != nil || n != 16 {
 			logger.Println(logger.CRITICAL, "Unable to generate token")
 			return 0, "", errPrng
@@ -182,6 +210,38 @@ func UpdateMailUserStatus(toAddr string, status int) error {
 
 //---------------------------------------------------------------------
 /*
+ * Drop token for email user in database
+ * @param toAddr string - mail address of user
+ * @return error - error instance or nil
+ */
+func DropMailUserToken(toAddr string) error {
+	logger.Printf(logger.INFO, "Dropping token for user '%s'\n", toAddr)
+	_, err := g.db.Exec(g.config.Database.DropMailToken, toAddr)
+	if err != nil {
+		logger.Println(logger.CRITICAL, "Unable to update user table (email)")
+		return errDatabase
+	}
+	return nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Drop email user in database
+ * @param toAddr string - mail address of user
+ * @return error - error instance or nil
+ */
+func DropMailUser(toAddr string) error {
+	logger.Printf(logger.INFO, "Dropping user '%s'\n", toAddr)
+	_, err := g.db.Exec(g.config.Database.DropMailUser, toAddr)
+	if err != nil {
+		logger.Println(logger.CRITICAL, "Unable to remove from user table (email)")
+		return errDatabase
+	}
+	return nil
+}
+
+//---------------------------------------------------------------------
+/*
  * Register a (new) mail user: Registration fails if a record with
  * the given mail address already exists in the database or the
  * public key is invalid.
@@ -202,7 +262,7 @@ func RegisterMailUser(addr string, key []byte) error {
 			Id:     g.client.GetPublicId(),
 			Server: g.config.Pond.Home,
 		}
-		err = SendNotificationEmail(addr, key, g.config.Tpls.MailRegSuccess, param)
+		err = SendNotificationEmail(addr, key, g.config.Tpls.MailRegSuccess, &param)
 	} else {
 		logger.Println(logger.INFO, "Sending REG-FAILURE message to '"+addr+"'")
 		param := struct {
@@ -241,9 +301,12 @@ func ValidateMailUser(addr string, key []byte) error {
 			Confirm string
 		}{
 			Addr:    g.config.Email.Address,
-			Confirm: "https://" + g.config.Web.Host + "/confirm/" + token,
+			Confirm: g.config.Web.Host + "/confirm/" + token,
 		}
-		err = SendNotificationEmail(addr, key, g.config.Tpls.MailRegSuccess, &param)
+		if err = SendNotificationEmail(addr, key, g.config.Tpls.ValidateMail, &param); err != nil {
+			logger.Println(logger.INFO, "Failed to send message-- dropping user '"+addr+"'")
+			err = DropMailUser(addr)
+		}
 	}
 	return err
 }
@@ -348,8 +411,54 @@ func UpdatePondUserStatus(peer string, status int) error {
 /*
  * Generate a peer identifier for registering Pond users.
  * @return string - new peer id
+ * @return error - error instance or nil
  */
-func GeneratePeerId() string {
+func GeneratePeerId() (string, error) {
 	buf := make([]byte, 8)
-	return util.Base58Encode(buf)
+	for i := 0; i < 100; i++ {
+		g.prng.Read(buf)
+		id := util.Base58Encode(buf)
+		if _, err := GetPondUserData(id); err != nil {
+			return id, nil
+		}
+	}
+	return "", errors.New("Failed to generate new peer id of Pond user")
+}
+
+//---------------------------------------------------------------------
+/*
+ * Check if a peer identifier is syntactically valid.
+ * @oaram id string - peer id to be checked
+ * @return bool - is peer id valid?
+ */
+func IsValidPeerId(id string) bool {
+	buf, err := util.Base58Decode(id)
+	if err != nil {
+		return false
+	}
+	return len(buf) == 8
+}
+
+//---------------------------------------------------------------------
+/*
+ * Convert a ASCII-armored public key representation into
+ * an OpenPGP key.
+ * @param buf []byte - armored public key representation
+ * @return *packet.PublicKey - OpenPGP key
+ * @return error - error instance or nil
+ */
+func GetPublicKey(buf []byte) (*packet.PublicKey, error) {
+	keyRdr, err := armor.Decode(bytes.NewBuffer(buf))
+	if err != nil {
+		return nil, err
+	}
+	keyData, err := packet.Read(keyRdr.Body)
+	if err != nil {
+		return nil, err
+	}
+	key, ok := keyData.(*packet.PublicKey)
+	if !ok {
+		return nil, errors.New("Invalid public key")
+	}
+	return key, nil
 }

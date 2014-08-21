@@ -8,6 +8,13 @@ body {
 	line-height: 180%;
 }
 
+div.content {
+	position:absolute;
+	width:800px;
+	margin-left: -400px;
+	left: 50%;
+}
+
 h1 {
 	text-align: center;
 	font-variant: small-caps;
@@ -23,6 +30,8 @@ span.emph {
 	color: #4fa4cc;
 	font-weight: bold;
 	font-size: 150%;
+	margin-left: 0.5em;
+	margin-right: 0.5em;
 }
 
 p.error {
@@ -36,25 +45,29 @@ p.center {
 }
 
 .box {
-    margin-left: auto;
-    margin-right: auto;
-	-moz-border-radius: 20px;
-	border-radius: 20px;
-	padding: 10px;
+	-moz-border-radius: 10px;
+	border-radius: 10px;
+	padding: 20px;
 	outline: 2px solid #f4b318;
 	background: white;
 	color: black;
-	font-size: 50px;
 	font-weight: bold;
 }
 
-div.button {
-	margin-top: 50px;	
-	margin-bottom: 50px;	
+.huge {
+	font-size: 400%;
+}
+
+.large {
+	font-size: 250%;
+}
+
+.spacer {
+	margin: 70px auto;
 }
 
 a.button {
-	-moz-border-radius: 50px;
+	-moz-border-radius: 5px;
 	border-radius: 5px;
 	padding: 10px;
 	background: #f4b318;
@@ -65,18 +78,6 @@ a.button {
 }
 
 a.button { text-decoration: none; color: white; } 
-/*
-div.button > a:link { color: white; } 
-div.button > a:hover { text-decoration: underline; color: white; }
-div.button > a:visited { color: white; }
-*/
-
-div.center {
-	position:absolute;
-	width:800px;
-	margin-left: -400px;
-	left: 50%;
-}
 
 .tabs input[type=radio] {
 	position: absolute;
@@ -132,7 +133,7 @@ div.center {
 	display: block;
 }
 
-.tab-content{
+.tab-content {
 	z-index: 2;
 	display: none;
 	text-align: left;
@@ -153,13 +154,12 @@ div.center {
 	animation-duration: 0.5s;
 }
 
-label.form {
-	font-weight: bold;
-	margin-right: 1em;
+.field {	
+	margin: 20px auto;
 }
 
-input[type=text]:focus + label.form {
-	color: #4fa4cc;
+.field > input {
+	font-size: 150%;
 }
 
 input, textarea {
@@ -169,13 +169,11 @@ input, textarea {
 	-o-transition: all 0.30s ease-in-out;
 	outline: none;
 	padding: 3px 0px 3px 3px;
-	margin: 5px 1px 3px 0px;
 	border: 1px solid #DDDDDD;
 }
  
 input[type=text]:focus, textarea:focus {
 	box-shadow: 0 0 5px #f4b318;
 	padding: 3px 0px 3px 3px;
-	margin: 5px 1px 3px 0px;
 	border: 1px solid #f4b318;
 }

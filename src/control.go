@@ -51,7 +51,7 @@ func (c *ControlSrv) Process(client net.Conn) {
 
 		// show control menu
 		b.WriteString("\n-----------------------------------\n")
-		b.WriteString("Change (L)og level [" + logger.GetLogLevel() + "]\n")
+		b.WriteString("Change (L)og level [" + logger.GetLogLevelName() + "]\n")
 		b.WriteString("(T)erminate application\n")
 		b.WriteString("e(X)it\n")
 		b.WriteString("-----------------------------------\n")
@@ -164,5 +164,6 @@ func readCmd(b *bufio.ReadWriter) (cmd string, err error) {
 		return "", err
 	}
 	// get rid of enclosing white spaces
-	return strings.Trim(string(line), " \t\n\v\r"), nil
+	cmd = strings.Trim(string(line), " \t\n\v\r")
+	return strings.ToUpper(cmd), nil
 }

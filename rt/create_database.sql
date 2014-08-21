@@ -18,7 +18,7 @@ create table email (
     primary key(id)
 );
 
-create index mail_idx on pond(addr);
+create index mail_idx on email(addr);
 
 -- --------------------------------------------------------------------
 -- POND-related tables
@@ -38,6 +38,6 @@ create index pond_idx on pond(peer);
 -- user management
 -- --------------------------------------------------------------------
 
-drop user 'pondgw'@'localhost';
-create user 'pondgw'@'localhost' identified by 'pondgw';
-grant select,delete,update,insert on pondgw.* to 'pondgw'@'localhost';
+-- drop user 'pondgw'@'localhost';
+-- create user 'pondgw'@'localhost' identified by 'pondgw';
+-- grant select,delete,update,insert on pondgw.* to 'pondgw'@'localhost';

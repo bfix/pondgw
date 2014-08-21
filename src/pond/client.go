@@ -58,7 +58,7 @@ type Client struct {
 	log                    Logger
 }
 
-func GetClient(stateFileName, stateFilePW string, home, proxy string, prng io.Reader, log Logger) (*Client, error) {
+func GetClient(stateFileName, stateFilePW string, home, proxy, pandaAddr string, prng io.Reader, log Logger) (*Client, error) {
 	var c *Client
 	stateFile := &disk.StateFile{
 		Path: stateFileName,
@@ -163,7 +163,7 @@ func GetClient(stateFileName, stateFilePW string, home, proxy string, prng io.Re
 	c.getNewPanda = func() panda.MeetingPlace {
 		return &panda.HTTPMeetingPlace{
 			TorAddress: proxy,
-			URL:        "https://panda-key-exchange.appspot.com/exchange",
+			URL:        pandaAddr,
 		}
 	}
 	log("Pond client initialization done - starting client")

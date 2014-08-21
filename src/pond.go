@@ -41,7 +41,7 @@ func InitPondModule() error {
 	logger.Println(logger.INFO, "Getting Pond client instance")
 	g.client, err = pond.GetClient(
 		g.config.Pond.StateFile, g.config.Pond.StatePW,
-		g.config.Pond.Home, g.config.Proxy,
+		g.config.Pond.Home, g.config.Proxy, g.config.Pond.Panda,
 		g.prng, log)
 	if err != nil {
 		return err
