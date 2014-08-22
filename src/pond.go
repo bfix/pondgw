@@ -50,3 +50,18 @@ func InitPondModule() error {
 	go g.client.Run()
 	return nil
 }
+
+//---------------------------------------------------------------------
+/*
+ * Send a message to a Pond peer.
+ * @param rcpt string - recipient identifier
+ * @param body string - message body
+ * @return error - error instance or nil if successful
+ */
+func SendPondMessage(rcpt, body string) error {
+	_, err := GetPondUserData(rcpt)
+	if err != nil {
+		return err
+	}
+	return g.client.SendMessage(rcpt, body)
+}
