@@ -44,11 +44,14 @@ import (
 )
 
 ///////////////////////////////////////////////////////////////////////
-// Global constants
+// Module-local/global constants
 
 const (
-	CT_MP_MIX = "multipart/mixed;"
-	CT_MP_ENC = "multipart/encrypted;"
+	ct_MP_MIX = "multipart/mixed;"
+	ct_MP_ENC = "multipart/encrypted;"
+
+	mode_PLAIN = iota
+	mode_SIGN_ENC
 
 	MAIL_CMD_QUIT = iota
 )
@@ -57,6 +60,16 @@ const (
 // Types
 
 type MailMessage []string
+
+//---------------------------------------------------------------------
+/*
+ * Result type for parsing mail messages
+ */
+type MailContent struct {
+	mode int    // message type (mode_XXX)
+	body string // message body
+	key  []byte // attached key (register) or signing key (else)
+}
 
 ///////////////////////////////////////////////////////////////////////
 /*
@@ -77,17 +90,10 @@ func InitMailModule() error {
 		return errors.New("Invalid private key")
 	}
 	g.identity = keyring[0]
-	out := new(bytes.Buffer)
-	wrt, err := armor.Encode(out, openpgp.PublicKeyType, nil)
+	g.pubkey, err = GetArmoredPublicKey(g.identity)
 	if err != nil {
 		return err
 	}
-	err = g.identity.PrimaryKey.Serialize(wrt)
-	wrt.Close()
-	if err != nil {
-		return err
-	}
-	g.pubkey = out.Bytes()
 	return nil
 }
 
@@ -144,7 +150,7 @@ func PollMailServer(ch chan<- MailMessage, ctrl <-chan int) {
 					continue
 				}
 				ch <- msg
-				sess.Delete(id)
+				//sess.Delete(id)
 			}
 			logger.Println(logger.INFO, "Disconnecting from server")
 			sess.Close()
@@ -176,117 +182,171 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 	if err != nil {
 		return err
 	}
-
 	logger.Println(logger.DBG_HIGH, "Handle incoming message...")
 	ct := m.Header.Get("Content-Type")
-	if strings.HasPrefix(ct, CT_MP_MIX) {
-		var (
-			body string
-			key  []byte
-		)
-		boundary := ExtractValue(ct, "boundary")
-		rdr := multipart.NewReader(m.Body, boundary)
-		for {
-			if part, err := rdr.NextPart(); err == nil {
-				ct = part.Header.Get("Content-Type")
-				logger.Println(logger.DBG, "Content-Type: "+ct)
-				switch {
-				case strings.HasPrefix(ct, "text/plain;"):
-					data, err := ioutil.ReadAll(part)
-					if err != nil {
-						return err
-					}
-					body = string(data)
-				case strings.HasPrefix(ct, "application/pgp-keys;"):
-					key, err = ioutil.ReadAll(part)
-					if err != nil {
-						return err
-					}
-				default:
-					return errors.New("Unhandled MIME part: " + ct)
-				}
-			} else if err == io.EOF {
-				break
-			} else {
-				return err
-			}
+	var content *MailContent = nil
+	if strings.HasPrefix(ct, ct_MP_MIX) {
+		content, err = ParsePlain(ct, m.Body)
+		if err != nil {
+			return err
 		}
-		if strings.HasPrefix(body, "register") {
-			return ValidateMailUser(addr.Address, key)
-		}
-		logger.Printf(logger.INFO, "Dropping unencrypted message from '%s'\n", addr.Address)
-	} else if strings.HasPrefix(ct, CT_MP_ENC) {
-		logger.Println(logger.DBG, "Content-Type: "+ct)
-		boundary := ExtractValue(ct, "boundary")
-		logger.Printf(logger.DBG, "Boundary: '%s'\n", boundary)
-		rdr := multipart.NewReader(m.Body, boundary)
-		var body []byte
-		for {
-			if part, err := rdr.NextPart(); err == nil {
-				ct = part.Header.Get("Content-Type")
-				logger.Println(logger.DBG, "Content-Type: "+ct)
-				switch {
-				case strings.HasPrefix(ct, "application/pgp-encrypted"):
-					buf, err := ioutil.ReadAll(part)
-					if err != nil {
-						return err
-					}
-					logger.Printf(logger.DBG, "Content: '%s'\n", strings.TrimSpace(string(buf)))
-					continue
-				case strings.HasPrefix(ct, "application/octet-stream;"):
-					rdr, err := armor.Decode(part)
-					if err != nil {
-						return err
-					}
-					prompt := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
-						priv := keys[0].PrivateKey
-						if priv.Encrypted {
-							priv.Decrypt([]byte(g.config.Email.Passphrase))
-						}
-						buf := new(bytes.Buffer)
-						priv.Serialize(buf)
-						return buf.Bytes(), nil
-					}
-					md, err := openpgp.ReadMessage(rdr.Body, openpgp.EntityList{g.identity}, prompt, nil)
-					if err != nil {
-						return err
-					}
-					body, err = ioutil.ReadAll(md.UnverifiedBody)
-					if err != nil {
-						return err
-					}
-					logger.Printf(logger.DBG, "Body: '%s'\n", body)
-					if md.IsSigned {
-						data, err := GetMailUserData(addr.Address)
-						if err != nil {
-							return err
-						}
-						key, err := GetPublicKey(data.PubKey)
-						if err != nil {
-							return err
-						}
-						h := md.Signature.Hash.New()
-						if _, err = h.Write(body); err != nil {
-							return err
-						}
-						if err = key.VerifySignature(h, md.Signature); err != nil {
-							return err
-						}
-						logger.Println(logger.DBG, "Signature verified OK")
-					} else {
-						logger.Printf(logger.INFO, "Dropping unsigned message from '%s'\n", addr.Address)
-					}
-				default:
-					return errors.New("Unhandled MIME part: " + ct)
-				}
-			} else if err == io.EOF {
-				break
-			} else {
-				return err
-			}
+	} else if strings.HasPrefix(ct, ct_MP_ENC) {
+		content, err = ParseSecured(ct, addr.Address, m.Body)
+		if err != nil {
+			return err
 		}
 	}
+	body := strings.Split(content.body, "\n")
+	if content.mode == mode_PLAIN {
+		if strings.HasPrefix(body[0], "register") {
+			return ValidateMailUser(addr.Address, content.key)
+		}
+		logger.Printf(logger.INFO, "Dropping unencrypted message from '%s'\n", addr.Address)
+	} else if content.mode == mode_SIGN_ENC {
+		switch {
+		case strings.HasPrefix(body[0], "register"):
+			return ValidateMailUser(addr.Address, content.key)
+		case strings.HasPrefix(body[0], "To:"):
+			rcpt := strings.TrimSpace(body[0][3:])
+			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", addr.Address, rcpt )
+			return SendPondMessage(rcpt, content.body)
+		}
+		logger.Printf(logger.INFO, "Dropping signed/encrypted message from '%s'\n", addr.Address)
+	}
 	return nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Parse plain text message.
+ * @param ct string - content type string
+ * @param body io.Reader - content reader
+ * @return *MailContent - parse result
+ * @return error - error instance or nil
+ */
+func ParsePlain(ct string, body io.Reader) (*MailContent, error) {
+	mc := new(MailContent)
+	mc.mode = mode_PLAIN
+	boundary := ExtractValue(ct, "boundary")
+	rdr := multipart.NewReader(body, boundary)
+	for {
+		if part, err := rdr.NextPart(); err == nil {
+			ct = part.Header.Get("Content-Type")
+			switch {
+			case strings.HasPrefix(ct, "text/plain;"):
+				data, err := ioutil.ReadAll(part)
+				if err != nil {
+					return nil, err
+				}
+				mc.body = string(data)
+			case strings.HasPrefix(ct, "application/pgp-keys;"):
+				mc.key, err = ioutil.ReadAll(part)
+				if err != nil {
+					return nil, err
+				}
+			default:
+				return nil, errors.New("Unhandled MIME part: " + ct)
+			}
+		} else if err == io.EOF {
+			break
+		} else {
+			return nil, err
+		}
+	}
+	return mc, nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Parse encrypted and signed message.
+ * @param ct string - content type string
+ * @param addr string - sender address
+ * @param body io.Reader - content reader
+ * @return *MailContent - parse result
+ * @return error - error instance or nil
+ */
+func ParseSecured(ct, addr string, body io.Reader) (*MailContent, error) {
+	mc := new(MailContent)
+	mc.mode = mode_SIGN_ENC
+	boundary := ExtractValue(ct, "boundary")
+	rdr := multipart.NewReader(body, boundary)
+	for {
+		if part, err := rdr.NextPart(); err == nil {
+			ct = part.Header.Get("Content-Type")
+			switch {
+			case strings.HasPrefix(ct, "application/pgp-encrypted"):
+				buf, err := ioutil.ReadAll(part)
+				if err != nil {
+					return nil, err
+				}
+				logger.Printf(logger.DBG, "Content: '%s'\n", strings.TrimSpace(string(buf)))
+				continue
+			case strings.HasPrefix(ct, "application/octet-stream;"):
+				rdr, err := armor.Decode(part)
+				if err != nil {
+					return nil, err
+				}
+				prompt := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
+					priv := keys[0].PrivateKey
+					if priv.Encrypted {
+						priv.Decrypt([]byte(g.config.Email.Passphrase))
+					}
+					buf := new(bytes.Buffer)
+					priv.Serialize(buf)
+					return buf.Bytes(), nil
+				}
+				md, err := openpgp.ReadMessage(rdr.Body, openpgp.EntityList{g.identity}, prompt, nil)
+				if err != nil {
+					return nil, err
+				}
+				if md.IsSigned {
+					data, err := GetMailUserData(addr)
+					if err != nil {
+						return nil, err
+					}
+					keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewBuffer(data.PubKey))
+					if err != nil {
+						return nil, err
+					}
+					md.SignedBy = GetKeyFromIdentity(keyring[0], keySIGN)
+					md.SignedByKeyId = md.SignedBy.PublicKey.KeyId
+					mc.key, err = GetArmoredPublicKey(keyring[0])
+					if err != nil {
+						return nil, err
+					}
+					content, err := ioutil.ReadAll(md.UnverifiedBody)
+					if err != nil {
+						return nil, err
+					}
+					if md.SignatureError != nil {
+						return nil, md.SignatureError
+					}
+					logger.Println(logger.INFO, "Signature verified OK")
+
+					m, err := mail.ReadMessage(bytes.NewBuffer(content))
+					if err != nil {
+						return nil, err
+					}
+					ct = m.Header.Get("Content-Type")
+					mc2, err := ParsePlain(ct, m.Body)
+					if err != nil {
+						return nil, err
+					}
+					mc.body = mc2.body
+				} else {
+					logger.Printf(logger.INFO, "Dropping unsigned message from '%s'\n", addr)
+					return nil, nil
+				}
+			default:
+				return nil, errors.New("Unhandled MIME part: " + ct)
+			}
+		} else if err == io.EOF {
+			break
+		} else {
+			return nil, err
+		}
+	}
+	return mc, nil
 }
 
 //---------------------------------------------------------------------
