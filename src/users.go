@@ -24,6 +24,7 @@ package main
 
 import (
 	"bytes"
+	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/armor"
 	"code.google.com/p/go.crypto/openpgp/packet"
 	"database/sql"
@@ -44,6 +45,10 @@ const (
 	statREGISTERED
 	statACTIVE
 	statREVOKED
+
+	keySIGN = iota
+	keyENCRYPT
+	keyAUTH
 )
 
 var (
@@ -461,4 +466,68 @@ func GetPublicKey(buf []byte) (*packet.PublicKey, error) {
 		return nil, errors.New("Invalid public key")
 	}
 	return key, nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Get armored piblic key for entity.
+ * @param ent *openpgp.Entity - OpenPGP entity
+ * @return []byte - armored public key representation
+ * @return error - error instance or nil
+ */
+func GetArmoredPublicKey(ent *openpgp.Entity) ([]byte, error) {
+	out := new(bytes.Buffer)
+	wrt, err := armor.Encode(out, openpgp.PublicKeyType, nil)
+	if err != nil {
+		return nil, err
+	}
+	err = ent.Serialize(wrt)
+	wrt.Close()
+	if err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Get a suitable subkey from entity.
+ * @param ent *openpgp.Entity - main entity
+ * @param mode int - key mode (keyXXX)
+ * @return *openpgp.Key - found subkey
+ */
+func GetKeyFromIdentity(ent *openpgp.Entity, mode int) *openpgp.Key {
+	key := new(openpgp.Key)
+	key.Entity = ent
+	ki := -1
+	for i, sk := range ent.Subkeys {
+		switch mode {
+		case keySIGN:
+			if sk.PublicKey.PubKeyAlgo.CanSign() {
+				ki = i
+				break
+			}
+		case keyENCRYPT:
+			if sk.PublicKey.PubKeyAlgo.CanEncrypt() {
+				ki = i
+				break
+			}
+		case keyAUTH:
+			ki = i
+			break
+		}
+	}
+	if ki >= 0 {
+		key.PublicKey = ent.Subkeys[ki].PublicKey
+		key.PrivateKey = ent.Subkeys[ki].PrivateKey
+		key.SelfSignature = ent.Subkeys[ki].Sig
+	} else {
+		key.PublicKey = ent.PrimaryKey
+		key.PrivateKey = ent.PrivateKey
+		for _, id := range ent.Identities {
+			key.SelfSignature = id.SelfSignature
+			break
+		}
+	}
+	return key
 }
