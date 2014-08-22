@@ -95,6 +95,9 @@ func (c *Client) init() {
 	c.writerDone = make(chan struct{})
 	c.newMessageChan = make(chan NewMessage)
 	c.messageSentChan = make(chan MessageSendResult)
+	c.pandaChan = make(chan PandaUpdate, 1)
+	c.usedIds = make(map[uint64]bool)
+	c.signingRequestChan = make(chan SigningRequest)
 }
 
 func (c *Client) transact(server *Server, req *pond.Request, anonymous bool) (*pond.Reply, error) {

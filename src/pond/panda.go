@@ -9,7 +9,6 @@ import (
 	"github.com/agl/ed25519/extra25519"
 	"github.com/agl/pond/bbssig"
 	"github.com/agl/pond/panda"
-	panda_proto "github.com/agl/pond/panda/proto"
 	pond "github.com/agl/pond/protos"
 	"github.com/bfix/gospel/logger"
 )
@@ -29,8 +28,12 @@ func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 		return err
 	}
 
+	stack := &panda.CardStack{
+		NumDecks: 1,
+	}
 	secret := panda.SharedSecret{
 		Secret: sharedSecret,
+		Cards:  *stack,
 	}
 
 	mp := c.getNewPanda()
@@ -41,7 +44,6 @@ func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 		return err
 	}
 	contact.pandaKeyExchange = kx.Marshal()
-	printKeyExchange(contact.pandaKeyExchange)
 	contact.kxsBytes = nil
 
 	c.SaveState(false)
@@ -77,10 +79,8 @@ func (c *Client) newKeyExchange(contact *Contact) error {
 		Signed:    kxBytes,
 		Signature: sig[:],
 	}
-	if contact.kxsBytes, err = proto.Marshal(kxs); err != nil {
-		return err
-	}
-	return nil
+	contact.kxsBytes, err = proto.Marshal(kxs)
+	return err
 }
 
 func (c *Client) runPANDA(serialisedKeyExchange []byte, id uint64, name string, shutdown chan struct{}) {
@@ -103,7 +103,6 @@ func (c *Client) runPANDA(serialisedKeyExchange []byte, id uint64, name string, 
 
 	if err == nil {
 		logger.Printf(logger.INFO, "Performing key exchange...")
-		printKeyExchange(kx.Marshal())
 		result, err = kx.Run()
 	}
 	if err == panda.ShutdownErr {
@@ -142,7 +141,7 @@ func (c *Client) processPANDAUpdate(update PandaUpdate) {
 		contact.pandaKeyExchange = nil
 		contact.pandaShutdownChan = nil
 
-		if err := contact.processKeyExchange(update.result, false, false, false); err != nil {
+		if err := contact.processKeyExchange(update.result); err != nil {
 			contact.pandaResult = err.Error()
 			update.err = err
 			logger.Printf(logger.WARN, "Key exchange with %s failed: %s\n", contact.name, err)
@@ -154,7 +153,7 @@ func (c *Client) processPANDAUpdate(update PandaUpdate) {
 	c.SaveState(false)
 }
 
-func (contact *Contact) processKeyExchange(kxsBytes []byte, testing, simulateOldClient, disableV2Ratchet bool) error {
+func (contact *Contact) processKeyExchange(kxsBytes []byte) error {
 	var kxs pond.SignedKeyExchange
 	if err := proto.Unmarshal(kxsBytes, &kxs); err != nil {
 		return err
@@ -198,10 +197,6 @@ func (contact *Contact) processKeyExchange(kxsBytes []byte, testing, simulateOld
 	}
 	copy(contact.theirIdentityPublic[:], kx.IdentityPublic)
 
-	if simulateOldClient {
-		kx.Dh1 = nil
-	}
-
 	if len(kx.Dh1) == 0 {
 		// They are using an old-style ratchet. We have to extract the
 		// private value from the Ratchet in order to use it with the
@@ -218,7 +213,7 @@ func (contact *Contact) processKeyExchange(kxsBytes []byte, testing, simulateOld
 		var ed25519Public, curve25519Public [32]byte
 		copy(ed25519Public[:], kx.PublicKey)
 		extra25519.PublicKeyToCurve25519(&curve25519Public, &ed25519Public)
-		v2 := !disableV2Ratchet && bytes.Equal(curve25519Public[:], kx.IdentityPublic[:])
+		v2 := bytes.Equal(curve25519Public[:], kx.IdentityPublic[:])
 		if err := contact.ratchet.CompleteKeyExchange(&kx, v2); err != nil {
 			return err
 		}
@@ -227,13 +222,4 @@ func (contact *Contact) processKeyExchange(kxsBytes []byte, testing, simulateOld
 	contact.generation = *kx.Generation
 
 	return nil
-}
-
-func printKeyExchange(buf []byte) {
-	var p panda_proto.KeyExchange
-	if err := proto.Unmarshal(buf, &p); err != nil {
-		logger.Println(logger.INFO, "KeyExchange: "+err.Error())
-		return
-	}
-	logger.Println(logger.INFO, "KeyExchange: "+p.String())
 }

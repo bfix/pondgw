@@ -22,6 +22,7 @@ import (
 
 const (
 	transactionRateSeconds = 300
+	protoVersion           = 1
 )
 
 type Logger func(format string, args ...interface{})
@@ -162,7 +163,7 @@ func GetClient(stateFileName, stateFilePW string, home, proxy, pandaAddr string,
 	}
 	c.getNewPanda = func() panda.MeetingPlace {
 		return &panda.HTTPMeetingPlace{
-			TorAddress: proxy,
+			TorAddress: proxy[len("socks5://"):],
 			URL:        pandaAddr,
 		}
 	}
@@ -320,4 +321,55 @@ func (c *Client) Poll() {
 			<-ackChan
 		}
 	}
+}
+
+func (c *Client) SendMessage(rcpt, body string) error {
+
+	var to *Contact = nil
+	for _, contact := range c.contacts {
+		if contact.name == rcpt {
+			to = contact
+			break
+		}
+	}
+	if to == nil {
+		return errors.New("No matching contact found")
+	}
+
+	message := &pond.Message{
+		Id:               proto.Uint64(randUInt64()),
+		Time:             proto.Int64(time.Now().Unix()),
+		Body:             []byte(body),
+		BodyEncoding:     pond.Message_RAW.Enum(),
+		Files:            nil,
+		DetachedFiles:    nil,
+		SupportedVersion: proto.Int32(protoVersion),
+	}
+
+	if to.ratchet == nil {
+		var nextDHPub [32]byte
+		curve25519.ScalarBaseMult(&nextDHPub, &to.currentDHPrivate)
+		message.MyNextDh = nextDHPub[:]
+	}
+
+	messageBytes, err := proto.Marshal(message)
+	if err != nil {
+		return err
+	}
+
+	if len(messageBytes) > pond.MaxSerializedMessage {
+		return errors.New("message too large")
+	}
+
+	out := &OutboxMessage{
+		id:      *message.Id,
+		to:      to.id,
+		server:  to.theirServer,
+		message: message,
+		created: time.Unix(*message.Time, 0),
+	}
+	c.Enqueue(out)
+	c.outbox = append(c.outbox, out)
+
+	return nil
 }
