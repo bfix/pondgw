@@ -10,7 +10,7 @@
 	</head>
 	<body>
 		<div class="content">
-			<h1>Pond/EMail Gateway Registration page</h1>
+			<h1 class="center">Pond/EMail Gateway Registration page</h1>
 			
 			<p>Congratulations &nbsp;&mdash; <span class="emph">your confirmation was successful</span>.
 			You are registered at our gateway with the email address</p>
@@ -19,8 +19,8 @@
 				<p class="center spacer large"><span class="box">{{.Addr}}</span></p>
 			</div>
 			
-			<p>Please read the <a href="/email.html">EMail user tutorial</a> on how to use
-			the Pond/EMail gateway.</p>
+			<p>Please read the <a href="../usage.html#email">EMail user tutorial</a> on how to use
+			the Pond/EMail gateway and send messages to registered Pond peers.</p>
 		</div>
 	</body>
 </html>

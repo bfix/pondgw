@@ -134,8 +134,6 @@ func main() {
 	mailCtrl := make(chan int)
 	go PollMailServer(mailMsgIn, mailCtrl)
 
-	//g.client.StartKeyExchange("test", "blahdroenfasel")
-
 	heartbeat := time.NewTicker(6 * time.Hour)
 	for {
 		select {
@@ -149,6 +147,7 @@ func main() {
 		case <-ch:
 			logger.Println(logger.INFO, "Terminating application.")
 			mailCtrl <- MAIL_CMD_QUIT
+			g.client.Shutdown()
 			return
 
 		// handle heartbeat and drop timed-out sessions

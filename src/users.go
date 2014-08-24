@@ -259,13 +259,9 @@ func RegisterMailUser(addr string, key []byte) error {
 	if err == nil {
 		logger.Println(logger.INFO, "Sending REG-SUCCESS message to '"+addr+"'")
 		param := struct {
-			Addr   string
-			Id     string
-			Server string
+			Addr string
 		}{
-			Addr:   g.config.Email.Address,
-			Id:     g.client.GetPublicId(),
-			Server: g.config.Pond.Home,
+			Addr: g.config.Email.Address,
 		}
 		err = SendNotificationEmail(addr, key, g.config.Tpls.MailRegSuccess, &param)
 	} else {
@@ -470,7 +466,7 @@ func GetPublicKey(buf []byte) (*packet.PublicKey, error) {
 
 //---------------------------------------------------------------------
 /*
- * Get armored piblic key for entity.
+ * Get armored public key for entity.
  * @param ent *openpgp.Entity - OpenPGP entity
  * @return []byte - armored public key representation
  * @return error - error instance or nil

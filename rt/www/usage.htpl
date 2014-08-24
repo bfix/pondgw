@@ -1,0 +1,174 @@
+<html>
+	<head>
+		<title>Pond/EMail Gateway -- tutorial</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+		<meta name="author" content="Bernd Fix <brf@hoi-polloi.org>"></meta>
+		<meta name="description" content="How to use the gateway"></meta>
+		<meta name="robots" content="INDEX,FOLLOW"></meta>
+		<meta name="revisit-after" Content="20 days"></meta>
+		<link rel="stylesheet" type="text/css" href="pondgw.css"></link>
+	</head>
+	<body>
+		<div class="content">
+			<h1 class="center">How to use the Pond/EMail gateway...</h1>
+
+			<p>The following short descriptions will explain how to use the Pond/EMail
+			gateway either from Pond or with your EMail client.</p>
+			
+			<a name="pond"><h2 class="solid">... as a Pond user</h2></a>
+			
+			<p>This assumes that you already have a running Pond client (either GUI or console-based)
+			and a valid Pond identity on a Pond home server. If you need help with Pond itself, you will
+			find all you need <a href="https://pond.imperialviolet.org/" target="_blank">here</a>.</p>
+			
+			<h3>1. Register with the gateway</h3>
+			
+			<p>To register as a Pond user, go to the <a href="register">registration page</a> and select
+			the "Pond" tab.</p>
+			
+			<p>Make up a shared secret for the initial key exchange (just as you would if you want to
+			peer with other Pond users) and enter it into the input field and submit the form.</p>
+			
+			<p>If your registration succeeds (if your shared secret is valid for a PANDA key exchange),
+			you will see a "success" page. This page will display a random <b><i>PeerId</i></b> that is
+			assigned to your Pond identity on the gateway. Write down this identifier and give it to all
+			the email users you want to receive messages from. The email users need to know this identifier
+			to address you and to send emails.</p>
+			
+			<p> Now create a new Pond contact for the gateway and enter the same shared secret you used in
+			the registration. Once the key exchange is complete, you can start sending messages to EMail
+			users.</p>
+			
+			<h3>2. Send a message to an email user</h3>
+			
+			<p>Compose a message to your gateway contact and send it. The first line of the message
+			<b><i>must</i></b> specify the receiving email address, the rest of the message is up
+			to you:</p>
+			
+			<div class="msg">
+				<p>To: fred@company.edu</p>
+				<p>&lt;...the rest of the message</p>
+				<p>goes here...&gt;</p>
+			</div>
+			
+			<p><u>Please note the following:</u></p>
+			<ul>
+				<li><p>Although it is theoretically possible to specify <b><i>any email address</i></b>
+				as a recipient, the gateway limits message forwarding to registered email users only.
+				If you want to send a message to an email user, please ask her/him to register with
+				this gateway first. If you specify an invalid email address, the gateway will never
+				acknowledge your message; this is the only feedback you will get. If you see the message
+				acknoledged, you know it had been handled by the gateway and was forwarded to the
+				recipient. If the delivery of the message fails on the other side of the gateway, you
+				will never get a notification.</p></li>
+				
+				<li><p> We highly recommend to only send additionally encrypted content, so the
+				forwarding gateway cannot read the plaintext message. Since the receiving email address
+				has an OpenPGP public key (otherwise it could not have registered with the gateway) it
+				is the easiest to use GnuPG to encrypt the message first and then paste it into the
+				Pond message you want to send:</p>
+
+					<div class="msg">
+						<p>To: fred@company.edu</p>
+						<p>-----BEGIN PGP MESSAGE-----</p>
+						<p>Version: GnuPG v2</p>
+						<p>&nbsp;</p>
+						<p>hQEMA4jV39EE5olLAQf+MLeVFcja6M/+eh27elVGMys1iWNOOIZaCtZtGXWJ02kl</p>
+						<p>q7oPUv8SCzNsgvv5STlcXPpju92hzwaU/LvlYHQ39S1dHU0hWmv+wI/NgcNYpAzc</p>
+						<p>pJC8SFV/jJ4VL6Uppx4Tv/dVVDgdcEzD2DTB4NUhpT06RNL/zrxEY/AAD0m7svdP</p>
+						<p>qeFY7zt0/YaC+yAJgtiZdOmZriBblq8pUpGxBxW+SMF/p13TF62PdZAMXtwMMwOx</p>
+						<p>0PQZAyJphM7bPwhuLChRSIojNHCEhXZgL/1E4OFqXgCiSoiR8QKycsy6f4+3RJxI</p>
+						<p>dd5NLZLwzM15asWPehYCiq82fRCTrVmN0FzQhhkXWNJQAXo6e7Nk3r0avIIZv/YQ</p>
+						<p>vEF3hLhdOxZQ1YVdkw7Z+nIbO8EYKM/772DgrVo0vjKYJn6EtTJwKlOibrdSmBVS</p>
+						<p>KBmJvABoBARRmcOxS9QbNNM=</p>
+						<p>=bzBW</p>
+						<p>-----END PGP MESSAGE-----</p>
+					</div>
+				</li>
+			</ul>
+			<div class="spacer"></div>
+			
+			<a name="email"><h2 class="solid">... as an EMail user</h2></a>
+			
+			<p>As prerequisites to using the gateway as an email user, you need to have OpenPGP
+			email encryption like <a href="https://gnupg.org/" target="_blank">GnuPG</a> installed
+			in your email client. You will not be able to register or use the gateway with a
+			OpenPGP keypair and a way to sign and encrypt mail messages.</p> 
+			
+			<h2>1. Register with the gateway</h2>
+
+			<p>Before you can start the registration, you need to have a file that contains your
+			public OpenPGP key. Most encryption plug-ins for email clients allow you to export
+			your public key to a file. If asked, export the key in the so-called "armored" format;
+			if you are not asked, your plug-in will use that format by default. If you fail to
+			create the required key file, you can only register using the
+			<a href="#2">email registration method</a></p>
+			
+			<h3>1.1. Web-based registration</h3>
+			
+			<p>To register as an EMail user, go to the <a href="register">registration page</a> and select
+			the "EMail" tab.</p>
+			
+			<p>Enter your email address, browse for the file that contains your public OpenPGP key
+			and submit the form.</p>
+			
+			<p>If your registration succeeds (if your email address looks valid and was not already
+			registered and if your public key is in a usable form), you will see a page that informs
+			you that a confirmation email has been send to the address you have specified. This
+			confirmation email will contain a link you need to follow with the next two days to
+			complete your registration. Once the confirmation is received, you will be able to
+			send messages to Pond users.</p>
+
+			<a name="2"><h3>1.2. EMail-based registration</h3></a>
+			
+			<p>Write an unsigned, unencrypted email to the gateway at '{{.GatewayEmail}}' where the
+			first line of the message reads "<b><i>register</i></b>"; the rest of the message (if
+			any) is gracefully ignored by the gateway. Attach your public key to the message (all
+			encryption plug-ins into email clients allow you to do this) and send it.</p>
+			
+			<p>Like in the web-based registration you will receive an confirmation email with a
+			link that you need to follow within two days to complete your registration. Once the
+			confirmation is received, you will be able to send messages to Pond users.</p>		
+
+			<h2>2. Send a message to a Pond user</h2>
+			
+			<p>Write a message to the gateway at '{{.GatewayEmail}}'. The first line of the message
+			<b><i>must</i></b> specify the receiving Pond user, the rest of the message is up
+			to you:</p>
+			
+			<div class="msg">
+				<p>To: Ypg6R5flM</p>
+				<p>&lt;...the rest of the message</p>
+				<p>goes here...&gt;</p>
+			</div>
+			
+			<p>Please note the following:</p>
+			<ul>
+				<li><p>The receiving Pond user is identified by a short sequence of characters and
+				digits that have been assigned during the Pond registration. You will need to know
+				this identifier of your Pond peer before you can send any message.</p></li>
+				
+				<li><p> We highly recommend to only send additionally encrypted content, so the
+				forwarding gateway cannot read the plaintext message. Since the receiving Pond
+				identity has no OpenPGP public key (by default), you need to negotiate with your
+				Pond peer how to secure emails send to the Pond account. Once you have settled for
+				a procedure (like using <a href="https://gnupg.org/" target="_blank">GnuPG</a> in
+				symmetric mode with a shared secret), encrypt the message first and then paste it
+				into the email message you want to send:</p>
+
+					<div class="msg">
+						<p>To: Ypg6R5flM</p>
+						<p>-----BEGIN PGP MESSAGE-----</p>
+						<p>Version: GnuPG v2</p>
+						<p>&nbsp;</p>
+						<p>jA0EAwMC83sTi1tztnfBySuOL3mdy2QnYfkOMpwqOyEGVZGmM5TifAfUjOvk1O9k</p>
+						<p>+T4EwSJaAp0FhWH5</p>
+						<p>=J5op</p>
+						<p>-----END PGP MESSAGE-----</p>
+					</div>
+				</li>
+			</ul>
+			<div class="spacer"></div>
+		</div>
+	</body>
+</html>

@@ -94,20 +94,20 @@ func (c *Client) State() *disk.State {
 
 	var inbox []*disk.Inbox
 	for _, msg := range c.inbox {
-		if time.Since(msg.receivedTime) > MESSAGE_LIFETIME && !msg.retained {
+		if time.Since(msg.ReceivedTime) > MESSAGE_LIFETIME && !msg.Retained {
 			continue
 		}
 		m := &disk.Inbox{
-			Id:           proto.Uint64(msg.id),
-			From:         proto.Uint64(msg.from),
-			ReceivedTime: proto.Int64(msg.receivedTime.Unix()),
-			Acked:        proto.Bool(msg.acked),
-			Read:         proto.Bool(msg.read),
-			Sealed:       msg.sealed,
-			Retained:     proto.Bool(msg.retained),
+			Id:           proto.Uint64(msg.Id),
+			From:         proto.Uint64(msg.From),
+			ReceivedTime: proto.Int64(msg.ReceivedTime.Unix()),
+			Acked:        proto.Bool(msg.Acked),
+			Read:         proto.Bool(msg.Read),
+			Sealed:       msg.Sealed,
+			Retained:     proto.Bool(msg.Retained),
 		}
-		if msg.message != nil {
-			if m.Message, err = proto.Marshal(msg.message); err != nil {
+		if msg.Message != nil {
+			if m.Message, err = proto.Marshal(msg.Message); err != nil {
 				panic(err)
 			}
 		}
@@ -191,11 +191,12 @@ func (c *Client) State() *disk.State {
 	return state
 }
 
-func newClientFromState(state *disk.State, prng io.Reader) (*Client, error) {
+func newClientFromState(state *disk.State, prng io.Reader, mfc chan MessageFeedback, log Logger) (*Client, error) {
 	var err error
 	c := new(Client)
 	c.init()
 	c.prng = prng
+	c.MessageFeedbackChan = mfc
 	c.server, err = NewServer(*state.Server)
 	if err != nil {
 		return nil, err
@@ -242,6 +243,7 @@ func newClientFromState(state *disk.State, prng io.Reader) (*Client, error) {
 		})
 	}
 
+	log("Restoring %d contacts...", len(state.Contacts))
 	for _, cont := range state.Contacts {
 		contact := &Contact{
 			id:               *cont.Id,
@@ -320,28 +322,35 @@ func newClientFromState(state *disk.State, prng io.Reader) (*Client, error) {
 		}
 	}
 
+	log("Restoring %d inbox messages...", len(state.Inbox))
 	now := time.Now()
 	for _, m := range state.Inbox {
 		msg := &InboxMessage{
-			id:           *m.Id,
-			from:         *m.From,
-			receivedTime: time.Unix(*m.ReceivedTime, 0),
-			acked:        *m.Acked,
-			read:         *m.Read,
-			sealed:       m.Sealed,
-			retained:     m.GetRetained(),
-			exposureTime: now,
+			Id:           *m.Id,
+			From:         *m.From,
+			ReceivedTime: time.Unix(*m.ReceivedTime, 0),
+			Acked:        *m.Acked,
+			Read:         *m.Read,
+			Sealed:       m.Sealed,
+			Retained:     m.GetRetained(),
+			ExposureTime: now,
 		}
-		c.registerId(msg.id)
+		c.registerId(msg.Id)
 		if len(m.Message) > 0 {
-			msg.message = new(protos.Message)
-			if err := proto.Unmarshal(m.Message, msg.message); err != nil {
+			msg.Message = new(protos.Message)
+			if err := proto.Unmarshal(m.Message, msg.Message); err != nil {
 				return nil, errors.New("client: corrupt message in inbox: " + err.Error())
 			}
 		}
 		c.inbox = append(c.inbox, msg)
+		c.MessageFeedbackChan <- MessageFeedback{
+			Mode: MF_RECEIVED,
+			Id:   msg.Id,
+			Info: c.contacts[msg.From].name,
+		}
 	}
 
+	log("Restoring %d outbox messages...", len(state.Outbox))
 	for _, m := range state.Outbox {
 		msg := &OutboxMessage{
 			id:      *m.Id,
@@ -374,10 +383,11 @@ func newClientFromState(state *disk.State, prng io.Reader) (*Client, error) {
 		}
 		c.outbox = append(c.outbox, msg)
 		if msg.sent.IsZero() && (msg.to == 0 || !c.contacts[msg.to].revokedUs) {
-			c.Enqueue(msg)
+			c.enqueue(msg)
 		}
 	}
 
+	log("Restoring %d draft messages...", len(state.Drafts))
 	for _, m := range state.Drafts {
 		draft := &Draft{
 			id:          *m.Id,

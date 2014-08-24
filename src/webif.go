@@ -233,6 +233,21 @@ func formHandler(resp http.ResponseWriter, req *http.Request) {
 
 //---------------------------------------------------------------------
 /*
+ * Assemble usage page (tutorial).
+ * @param resp http.ResponseWriter - response buffer
+ * @param req *http.Request - request data
+ */
+func usageHandler(resp http.ResponseWriter, req *http.Request) {
+	data := struct {
+		GatewayEmail string
+	}{
+		GatewayEmail: g.config.Email.Address,
+	}
+	RenderPage(resp, g.config.Web.UsagePage, &data)
+}
+
+//---------------------------------------------------------------------
+/*
  * Confirm email registration.
  * @param resp http.ResponseWriter - response buffer
  * @param req *http.Request - request data
@@ -284,6 +299,7 @@ func httpsServe() {
 		return
 	}
 	http.Handle("/", http.FileServer(http.Dir("./www")))
+	http.HandleFunc("/usage", usageHandler)
 	http.HandleFunc("/register", formHandler)
 	http.HandleFunc("/register/", regHandler)
 	http.HandleFunc("/confirm/", confirmHandler)

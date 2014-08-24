@@ -15,13 +15,7 @@ div.content {
 	left: 50%;
 }
 
-h1 {
-	text-align: center;
-	font-variant: small-caps;
-	color: #f4b318;
-}
-
-h2 {
+h1, h2, h3 {
 	font-variant: small-caps;
 	color: #f4b318;
 }
@@ -40,8 +34,13 @@ p.error {
 	font-size: 150%;
 }
 
-p.center {
+.center {
 	text-align: center;
+}
+
+hr {
+	color: #f4b318;
+	height: 5px;
 }
 
 .box {
@@ -63,21 +62,33 @@ p.center {
 }
 
 .spacer {
-	margin: 70px auto;
+	margin: 50px auto;
 }
 
-a.button {
+.solid {
 	-moz-border-radius: 5px;
 	border-radius: 5px;
 	padding: 10px;
 	background: #f4b318;
 	color: white;
+}
+
+.msg {
+	padding: 20px;
+	background: #eeeeee;
+	color: black;
+	outline: 1px solid black;
+	font-family: monospace;
+	line-height: 70%;
+}
+
+a.button {
 	font-size: 150%;
 	font-weight: bold;
 	text-align: center;
+	text-decoration: none;
+	color: white;
 }
-
-a.button { text-decoration: none; color: white; } 
 
 .tabs input[type=radio] {
 	position: absolute;

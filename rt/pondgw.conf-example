@@ -42,7 +42,7 @@
 		"home": "pondserver://22JUQKUHK5HO4ZOPM64JPYUQBCQJ4RXKSOPIHUXEVDJRH26C6HPT@w2wh2ahjj34dbgat.onion",
 		"stateFile": "pondgw.state",
 		"statePW": "SubstituteWithRealPassword"
-		"panda": "https://127.0.0.1:11443/exchange",
+		"panda": "https://panda-key-exchange.appspot.com/exchange"
 	},
 
 	"templates": {
@@ -51,6 +51,7 @@
 		"validateMail": "tpl/ValidateMail.tpl",
 		"mailPending": "www/register/MailPending.htpl",
 		"mailConfirm": "www/confirm/MailConfirm.htpl",
-		"pondRegSuccess": "www/register/PondRegSuccess.htpl"
+		"pondRegSuccess": "www/register/PondRegSuccess.htpl",
+		"usagePage": "www/usage.htpl"
 	}
 }

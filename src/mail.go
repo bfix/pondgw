@@ -115,10 +115,11 @@ func PollMailServer(ch chan<- MailMessage, ctrl <-chan int) {
 	seed := int64(binary.LittleEndian.Uint64(buf))
 	rnd := mrand.New(mrand.NewSource(seed))
 	wait := func(t int) <-chan time.Time {
-		if t == 0 {
-			t = g.config.Email.Poll
+		d := rnd.ExpFloat64() * float64(t) * 1000
+		if d < 2000 {
+			d *= 100.
 		}
-		delay := time.Duration(rnd.ExpFloat64()*float64(t)*1000) * time.Millisecond
+		delay := time.Duration(d) * time.Millisecond
 		logger.Printf(logger.INFO, "Next POP3 poll in %s seconds\n", delay)
 		return time.After(delay)
 	}
@@ -150,11 +151,11 @@ func PollMailServer(ch chan<- MailMessage, ctrl <-chan int) {
 					continue
 				}
 				ch <- msg
-				//sess.Delete(id)
+				sess.Delete(id)
 			}
 			logger.Println(logger.INFO, "Disconnecting from server")
 			sess.Close()
-			heartbeat = wait(0)
+			heartbeat = wait(g.config.Email.Poll)
 		}
 	}
 	logger.Println(logger.INFO, "Leaving POP3 polling loop")
@@ -208,7 +209,7 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 			return ValidateMailUser(addr.Address, content.key)
 		case strings.HasPrefix(body[0], "To:"):
 			rcpt := strings.TrimSpace(body[0][3:])
-			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", addr.Address, rcpt )
+			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", addr.Address, rcpt)
 			return SendPondMessage(rcpt, content.body)
 		}
 		logger.Printf(logger.INFO, "Dropping signed/encrypted message from '%s'\n", addr.Address)
@@ -396,6 +397,34 @@ func SendNotificationEmail(toAddr string, key []byte, tplName string, data inter
 	att.Header.Set("Content-Disposition", "attachment;\n filename=\"pubkey.asc\"")
 	att.Data = g.pubkey
 	buf, err := network.CreateMailMessage(out.Bytes(), []*network.MailAttachment{att})
+	if err != nil {
+		logger.Println(logger.ERROR, err.Error())
+		return err
+	}
+	userData, err := GetMailUserData(toAddr)
+	if err != nil {
+		logger.Println(logger.ERROR, err.Error())
+		return err
+	}
+	msg, err := network.EncryptMailMessage(userData.PubKey, buf)
+	if err != nil {
+		logger.Println(logger.ERROR, err.Error())
+		return err
+	}
+	if err = network.SendMailMessage(g.config.Email.SMTP, g.config.Proxy, g.config.Email.Address, toAddr, msg); err != nil {
+		logger.Println(logger.ERROR, err.Error())
+	}
+	return err
+}
+
+//---------------------------------------------------------------------
+/*
+ * Send a mail to user.
+ * @param toAddr string - mail address of user
+ * @param body []byte - mail body
+ */
+func SendEmailMessage(toAddr string, body []byte) error {
+	buf, err := network.CreateMailMessage(body, nil)
 	if err != nil {
 		logger.Println(logger.ERROR, err.Error())
 		return err

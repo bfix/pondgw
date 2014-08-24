@@ -10,7 +10,8 @@
 	</head>
 	<body>
 		<div class="content">
-			<h1>Pond/EMail Gateway Registration page</h1>
+			<h1 class="center">Pond/EMail Gateway Registration page</h1>
+			
 			<p>Please choose the registration mode (<b>EMail</b> or <b>Pond</b>) and provide
 			the required information:</p>
 		

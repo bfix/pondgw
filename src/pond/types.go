@@ -66,18 +66,31 @@ type PendingDetachment struct {
 	cancel func()
 }
 
+const (
+	MF_RECEIVED = iota
+	MF_SEND
+	MF_SEND_FAILED
+	MF_ACK
+)
+
+type MessageFeedback struct {
+	Mode int
+	Id   uint64
+	Info string
+}
+
 type InboxMessage struct {
-	id           uint64
-	read         bool
-	receivedTime time.Time
-	from         uint64
-	sealed       []byte
-	acked        bool
-	message      *pond.Message
+	Id           uint64
+	Read         bool
+	ReceivedTime time.Time
+	From         uint64
+	Sealed       []byte
+	Acked        bool
+	Message      *pond.Message
 	//	cliId cliId
-	retained     bool
-	exposureTime time.Time
-	decryptions  map[uint64]*PendingDecryption
+	Retained     bool
+	ExposureTime time.Time
+	Decryptions  map[uint64]*PendingDecryption
 }
 
 type OutboxMessage struct {

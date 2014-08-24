@@ -96,7 +96,7 @@ func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 		panic(0)
 	}
 
-	sealed := inboxMsg.sealed
+	sealed := inboxMsg.Sealed
 	plaintext, ok := c.decryptMessage(sealed, from)
 
 	if !ok {
@@ -124,10 +124,10 @@ func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 	}
 
 	for _, candidate := range c.inbox {
-		if candidate.from == from.id &&
-			candidate.id != inboxMsg.id &&
-			candidate.message != nil &&
-			*candidate.message.Id == *msg.Id {
+		if candidate.From == from.id &&
+			candidate.Id != inboxMsg.Id &&
+			candidate.Message != nil &&
+			*candidate.Message.Id == *msg.Id {
 			logger.Printf(logger.WARN, "Dropping duplicate message from %s\n", from.name)
 			return false
 		}
@@ -160,6 +160,11 @@ func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 		for _, candidate := range c.outbox {
 			if candidate.id == ackedId {
 				candidate.acked = now
+				c.MessageFeedbackChan <- MessageFeedback{
+					Mode: MF_ACK,
+					Id:   candidate.id,
+					Info: c.contacts[candidate.to].name,
+				}
 				break
 			}
 		}
@@ -170,9 +175,9 @@ func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 	}
 
 	from.kxsBytes = nil
-	inboxMsg.message = msg
-	inboxMsg.sealed = nil
-	inboxMsg.read = false
+	inboxMsg.Message = msg
+	inboxMsg.Sealed = nil
+	inboxMsg.Read = false
 
 	return true
 }

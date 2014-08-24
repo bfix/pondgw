@@ -8,17 +8,18 @@ HOW TO SEND MESSAGES TO A POND USER:
 
 (1) Write a plain text message not longer than 15,000 characters.
 
-(2) Encrypt the message with the public key of the recipient and output the result in armored (ASCII) format
+(2) [Optional, but highly recommended] Encrypt the message with the public key of the recipient and output the result in armored (ASCII) format
 
 (3) Copy the encrypted text into your email body.
 
-(4) Insert two lines at the top of the body to specify the recipient:
+(4) Add a line at the top (first line) to specify the Pond recipient:
 
-    Identity:{{.Id}}
-    Server:{{.Server}}
-    
-(5) Leave the subject empty and sign and encrypt the message before sending it to the gateway email address
+    To: XXXXXX
 
-N.B.: We suggest to create email drafts (templates) for each of the Pond users you want to communicate with and specify the first two lines as specified above. This makes sending messages to your Pond peers easier.
+The recipient is identified by a short string; ask your Pond peer(s) for theirs. 
+
+(5) Leave the subject of the email empty and sign and encrypt the message before sending it to the gateway email address
+
+N.B.: We suggest to create email drafts (templates) for each of the Pond users you want to communicate with and specify the first line as specified above. This makes sending messages to your Pond peers easier.
 
 Enjoy the Pond/EMail-Gateway.

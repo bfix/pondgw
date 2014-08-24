@@ -3,7 +3,6 @@ package pond
 import (
 	"code.google.com/p/go.crypto/curve25519"
 	"code.google.com/p/goprotobuf/proto"
-	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"github.com/agl/ed25519"
@@ -12,9 +11,7 @@ import (
 	"github.com/agl/pond/client/disk"
 	"github.com/agl/pond/panda"
 	pond "github.com/agl/pond/protos"
-	"github.com/bfix/gospel/logger"
 	"io"
-	mrand "math/rand"
 	"os"
 	"sync"
 	"time"
@@ -53,13 +50,18 @@ type Client struct {
 	getNewPanda            func() panda.MeetingPlace
 	signingRequestChan     chan SigningRequest
 	newMessageChan         chan NewMessage
+	MessageFeedbackChan    chan MessageFeedback
 	messageSentChan        chan MessageSendResult
 	prng                   io.Reader
 	proxy                  string
 	log                    Logger
 }
 
-func GetClient(stateFileName, stateFilePW string, home, proxy, pandaAddr string, prng io.Reader, log Logger) (*Client, error) {
+func GetClient(
+	stateFileName, stateFilePW string,
+	home, proxy, pandaAddr string,
+	prng io.Reader, mfc chan MessageFeedback, log Logger) (*Client, error) {
+
 	var c *Client
 	stateFile := &disk.StateFile{
 		Path: stateFileName,
@@ -85,7 +87,7 @@ func GetClient(stateFileName, stateFilePW string, home, proxy, pandaAddr string,
 			return nil, err
 		}
 		log("Instanciating Pond client from state file")
-		c, err = newClientFromState(state, prng)
+		c, err = newClientFromState(state, prng, mfc, log)
 		if err != nil {
 			log("Pond client creation failed")
 			return nil, err
@@ -108,7 +110,11 @@ func GetClient(stateFileName, stateFilePW string, home, proxy, pandaAddr string,
 		c.init()
 		c.prng = prng
 		c.proxy = proxy
-		c.id = NewRandomIdentity()
+		c.MessageFeedbackChan = mfc
+		c.id, err = NewRandomIdentity()
+		if err != nil {
+			return nil, err
+		}
 		copy(c.private[:], priv[:])
 		copy(c.public[:], pub[:])
 		extra25519.PrivateKeyToCurve25519(&c.id.secret, priv)
@@ -172,7 +178,7 @@ func GetClient(stateFileName, stateFilePW string, home, proxy, pandaAddr string,
 }
 
 func (c *Client) Run() {
-	go c.Poll()
+	go c.poll()
 
 	c.log("Starting pending PANDA key exchanges:")
 	num := 0
@@ -203,124 +209,41 @@ func (c *Client) Run() {
 	}
 }
 
-func (c *Client) GetPublicId() string {
-	return hex.EncodeToString(c.id.public[:])
+func (c *Client) Shutdown() {
+	c.SaveState(false)
 }
 
-func (c *Client) Enqueue(m *OutboxMessage) {
-	c.queueMutex.Lock()
-	defer c.queueMutex.Unlock()
-	c.queue = append(c.queue, m)
-}
-
-func (c *Client) Poll() {
-	startup := true
-
-	var (
-		ackChan chan bool
-		head    *OutboxMessage
-	)
-	lastWasSend := false
-
-	for {
-		if head != nil {
-			c.queueMutex.Lock()
-			head.sending = false
-			c.queueMutex.Unlock()
-			head = nil
-		}
-
-		if !startup {
-			if ackChan != nil {
-				ackChan <- true
-				ackChan = nil
-			}
-
-			var timerChan <-chan time.Time
-			seed := int64(binary.LittleEndian.Uint64(randBytes(8)))
-			r := mrand.New(mrand.NewSource(seed))
-			delaySeconds := r.ExpFloat64() * transactionRateSeconds
-			delay := time.Duration(delaySeconds*1000) * time.Millisecond
-			logger.Printf(logger.INFO, "Next network transaction in %s seconds\n", delay)
-			timerChan = time.After(delay)
-
-			select {
-			case <-timerChan:
-			}
-		}
-		startup = false
-
-		var (
-			req    *pond.Request
-			server *Server
-			err    error
-		)
-		useAnonymousIdentity := true
-		isFetch := false
-		c.queueMutex.Lock()
-		if lastWasSend || len(c.queue) == 0 {
-			useAnonymousIdentity = false
-			isFetch = true
-			req = &pond.Request{Fetch: &pond.Fetch{}}
-			server = c.server
-			logger.Println(logger.INFO, "Starting fetch from home server")
-			lastWasSend = false
-		} else {
-			head = c.queue[0]
-			head.sending = true
-			c.queue = append(c.queue[1:], head)
-			req = head.request
-			server, err = NewServer(head.server)
-			if err != nil {
-				continue
-			}
-			logger.Printf(logger.INFO, "Starting message transmission to %s\n", server)
-			if head.revocation {
-				useAnonymousIdentity = false
-			}
-			lastWasSend = true
-		}
-		c.queueMutex.Unlock()
-		c.messageSentChan <- MessageSendResult{}
-
-		if lastWasSend && req == nil {
-			resultChan := make(chan *pond.Request, 1)
-			c.signingRequestChan <- SigningRequest{head, resultChan}
-			req = <-resultChan
-			if req == nil {
-				continue
-			}
-		}
-		reply, err := c.transact(server, req, useAnonymousIdentity)
-		if err != nil {
-			continue
-		}
-		if !isFetch {
-			c.queueMutex.Lock()
-			indexOfSentMessage := c.indexOfQueuedMessage(head)
-			if indexOfSentMessage == -1 {
-				continue
-			}
-			head.sending = false
-			if reply.Status == nil {
-				c.removeQueuedMessage(indexOfSentMessage)
-				c.queueMutex.Unlock()
-				c.messageSentChan <- MessageSendResult{id: head.id}
-			} else if *reply.Status == pond.Reply_GENERATION_REVOKED &&
-				reply.Revocation != nil {
-				c.queueMutex.Unlock()
-				c.messageSentChan <- MessageSendResult{id: head.id, revocation: reply.Revocation, extraRevocations: reply.ExtraRevocations}
-			} else {
-				c.queueMutex.Unlock()
-			}
-
-			head = nil
-		} else if reply.Fetched != nil || reply.Announce != nil {
-			ackChan := make(chan bool)
-			c.newMessageChan <- NewMessage{reply.Fetched, reply.Announce, ackChan}
-			<-ackChan
+func (c *Client) GetInboxMessage(id uint64) *InboxMessage {
+	for _, m := range c.inbox {
+		if m.Id == id {
+			return m
 		}
 	}
+	return nil
+}
+
+func (c *Client) DeleteInboxMessage(id uint64) {
+	newInbox := make([]*InboxMessage, 0, len(c.inbox))
+	for _, inboxMsg := range c.inbox {
+		if inboxMsg.Id == id {
+			continue
+		}
+		newInbox = append(newInbox, inboxMsg)
+	}
+	c.inbox = newInbox
+}
+
+func (c *Client) AckMessage(id uint64) {
+	for _, m := range c.inbox {
+		if m.Id == id {
+			m.Acked = true
+			c.sendAck(m)
+		}
+	}
+}
+
+func (c *Client) GetPublicId() string {
+	return hex.EncodeToString(c.id.public[:])
 }
 
 func (c *Client) SendMessage(rcpt, body string) error {
@@ -341,8 +264,8 @@ func (c *Client) SendMessage(rcpt, body string) error {
 		Time:             proto.Int64(time.Now().Unix()),
 		Body:             []byte(body),
 		BodyEncoding:     pond.Message_RAW.Enum(),
-		Files:            nil,
-		DetachedFiles:    nil,
+		Files:            make([]*pond.Message_Attachment, 0),
+		DetachedFiles:    make([]*pond.Message_Detachment, 0),
 		SupportedVersion: proto.Int32(protoVersion),
 	}
 
@@ -351,6 +274,11 @@ func (c *Client) SendMessage(rcpt, body string) error {
 		curve25519.ScalarBaseMult(&nextDHPub, &to.currentDHPrivate)
 		message.MyNextDh = nextDHPub[:]
 	}
+
+	return c.Send(to, message)
+}
+
+func (c *Client) Send(to *Contact, message *pond.Message) error {
 
 	messageBytes, err := proto.Marshal(message)
 	if err != nil {
@@ -368,7 +296,7 @@ func (c *Client) SendMessage(rcpt, body string) error {
 		message: message,
 		created: time.Unix(*message.Time, 0),
 	}
-	c.Enqueue(out)
+	c.enqueue(out)
 	c.outbox = append(c.outbox, out)
 
 	return nil

@@ -25,6 +25,7 @@ package main
 import (
 	"./pond"
 	"github.com/bfix/gospel/logger"
+	"strings"
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -37,18 +38,60 @@ func InitPondModule() error {
 	log := func(format string, args ...interface{}) {
 		logger.Printf(logger.INFO, format, args...)
 	}
+	mfc := make(chan pond.MessageFeedback)
+	go HandleMessageNotifications(mfc)
+
 	var err error
 	logger.Println(logger.INFO, "Getting Pond client instance")
 	g.client, err = pond.GetClient(
 		g.config.Pond.StateFile, g.config.Pond.StatePW,
 		g.config.Pond.Home, g.config.Proxy, g.config.Pond.Panda,
-		g.prng, log)
+		g.prng, mfc, log)
 	if err != nil {
 		return err
 	}
 	logger.Println(logger.INFO, "Starting Pond client")
 	go g.client.Run()
 	return nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Handle message notifications from client
+ * @param mfc <-chan pond.MessageFeedback - incoming notifications
+ */
+func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
+	for {
+		select {
+		case n := <-mfc:
+			switch n.Mode {
+			case pond.MF_RECEIVED:
+				msg := g.client.GetInboxMessage(n.Id)
+				if msg == nil {
+					logger.Println(logger.INFO, "Unknown inbox message?!")
+					continue
+				}
+				if !msg.Acked {
+					body := strings.Split(string(msg.Message.Body), "\n")
+					if strings.HasPrefix(body[0], "To:") {
+						rcpt := strings.TrimSpace(body[0][3:])
+						logger.Printf(logger.INFO, "Forwarding message from '%s' to '%s'\n", n.Info, rcpt)
+						if err := SendEmailMessage(rcpt, msg.Message.Body); err != nil {
+							logger.Printf(logger.INFO, "Faild to forward message to '%s'\n", rcpt)
+						}
+
+					} else {
+						logger.Printf(logger.INFO, "Skipping message from '%s'\n", n.Info)
+					}
+					g.client.AckMessage(n.Id)
+				}
+				g.client.DeleteInboxMessage(n.Id)
+				g.client.SaveState(false)
+			case pond.MF_ACK:
+				logger.Printf(logger.INFO, "Message acknowledged by %s\n", n.Info)
+			}
+		}
+	}
 }
 
 //---------------------------------------------------------------------

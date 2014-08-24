@@ -17,6 +17,7 @@ import (
 	"github.com/agl/pond/transport"
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
+	mrand "math/rand"
 	"net/url"
 	"strconv"
 	"strings"
@@ -57,21 +58,23 @@ func NewPublicIdentityFromBase32(s string) (*PublicIdentity, error) {
 		s += "="
 	}
 	v, err := base32.StdEncoding.DecodeString(s)
-	if err == nil {
-		if len(v) != 32 {
-			return nil, errors.New("Invalid public identity")
-		}
-		copy(id.public[:], v)
-		return id, nil
+	if err != nil {
+		return nil, err
 	}
-	return nil, err
+	if len(v) != 32 {
+		return nil, errors.New("Invalid public identity")
+	}
+	copy(id.public[:], v)
+	return id, nil
 }
 
-func NewRandomIdentity() *Identity {
-	var secret [32]byte
-	copy(secret[:], randBytes(32))
-	id, _ := NewIdentity(secret[:])
-	return id
+func NewRandomIdentity() (*Identity, error) {
+	secret := randBytes(32)
+	id, err := NewIdentity(secret)
+	if err != nil {
+		return nil, err
+	}
+	return id, nil
 }
 
 func NewIdentity(secret []byte) (*Identity, error) {
@@ -79,7 +82,7 @@ func NewIdentity(secret []byte) (*Identity, error) {
 	if len(secret) != len(id.secret) {
 		return nil, errors.New("Invalid secret for new identity")
 	}
-	copy(id.secret[:], secret[:])
+	copy(id.secret[:], secret)
 	curve25519.ScalarBaseMult(&id.public, &id.secret)
 	return id, nil
 }
@@ -103,14 +106,17 @@ func (c *Client) init() {
 func (c *Client) transact(server *Server, req *pond.Request, anonymous bool) (*pond.Reply, error) {
 	id := c.id
 	if anonymous {
-		id = NewRandomIdentity()
+		var err error
+		if id, err = NewRandomIdentity(); err != nil {
+			return nil, err
+		}
 	}
 	rawConn, err := network.Socks5Connect("tcp", server.addr, server.port, c.proxy)
 	if err != nil {
 		return nil, err
 	}
 	rawConn.SetDeadline(time.Now().Add(60 * time.Second))
-	conn := transport.NewClient(rawConn, &id.secret, &id.public, &c.server.id.public)
+	conn := transport.NewClient(rawConn, &id.secret, &id.public, &server.id.public)
 	defer conn.Close()
 	if err = conn.Handshake(); err != nil {
 		return nil, err
@@ -138,6 +144,123 @@ func (c *Client) indexOfQueuedMessage(msg *OutboxMessage) (index int) {
 		}
 	}
 	return -1
+}
+
+func (c *Client) enqueue(m *OutboxMessage) {
+	c.queueMutex.Lock()
+	defer c.queueMutex.Unlock()
+	c.queue = append(c.queue, m)
+}
+
+func (c *Client) poll() {
+	startup := true
+
+	var (
+		ackChan chan bool
+		head    *OutboxMessage
+	)
+	lastWasSend := false
+
+	for {
+		if head != nil {
+			c.queueMutex.Lock()
+			head.sending = false
+			c.queueMutex.Unlock()
+			head = nil
+		}
+
+		if !startup {
+			if ackChan != nil {
+				ackChan <- true
+				ackChan = nil
+			}
+
+			var timerChan <-chan time.Time
+			seed := int64(binary.LittleEndian.Uint64(randBytes(8)))
+			r := mrand.New(mrand.NewSource(seed))
+			delaySeconds := r.ExpFloat64() * transactionRateSeconds
+			delay := time.Duration(delaySeconds*1000) * time.Millisecond
+			logger.Printf(logger.INFO, "Next network transaction in %s seconds\n", delay)
+			timerChan = time.After(delay)
+
+			select {
+			case <-timerChan:
+			}
+		}
+		startup = false
+
+		var (
+			req    *pond.Request
+			server *Server
+			err    error
+		)
+		useAnonymousIdentity := true
+		isFetch := false
+		c.queueMutex.Lock()
+		if lastWasSend || len(c.queue) == 0 {
+			useAnonymousIdentity = false
+			isFetch = true
+			req = &pond.Request{Fetch: &pond.Fetch{}}
+			server = c.server
+			logger.Println(logger.INFO, "Starting fetch from home server")
+			lastWasSend = false
+		} else {
+			head = c.queue[0]
+			head.sending = true
+			c.queue = append(c.queue[1:], head)
+			req = head.request
+			server, err = NewServer(head.server)
+			if err != nil {
+				continue
+			}
+			logger.Printf(logger.INFO, "Starting message transmission to %s\n", server.url)
+			if head.revocation {
+				useAnonymousIdentity = false
+			}
+			lastWasSend = true
+		}
+		c.queueMutex.Unlock()
+		c.messageSentChan <- MessageSendResult{}
+
+		if lastWasSend && req == nil {
+			resultChan := make(chan *pond.Request, 1)
+			c.signingRequestChan <- SigningRequest{head, resultChan}
+			req = <-resultChan
+			if req == nil {
+				continue
+			}
+		}
+		reply, err := c.transact(server, req, useAnonymousIdentity)
+		if err != nil {
+			logger.Printf(logger.INFO, "Transaction failed: %s\n", err.Error())
+			continue
+		}
+		if !isFetch {
+			c.queueMutex.Lock()
+			indexOfSentMessage := c.indexOfQueuedMessage(head)
+			if indexOfSentMessage == -1 {
+				continue
+			}
+			head.sending = false
+			if reply.Status == nil {
+				c.removeQueuedMessage(indexOfSentMessage)
+				c.queueMutex.Unlock()
+				c.messageSentChan <- MessageSendResult{id: head.id}
+			} else if *reply.Status == pond.Reply_GENERATION_REVOKED &&
+				reply.Revocation != nil {
+				c.queueMutex.Unlock()
+				c.messageSentChan <- MessageSendResult{id: head.id, revocation: reply.Revocation, extraRevocations: reply.ExtraRevocations}
+			} else {
+				c.queueMutex.Unlock()
+			}
+
+			head = nil
+		} else if reply.Fetched != nil || reply.Announce != nil {
+			ackChan := make(chan bool)
+			c.newMessageChan <- NewMessage{reply.Fetched, reply.Announce, ackChan}
+			<-ackChan
+		}
+	}
 }
 
 func (c *Client) removeQueuedMessage(index int) {
@@ -221,18 +344,24 @@ NextCandidate:
 	}
 
 	inboxMsg := &InboxMessage{
-		id:           randUInt64(),
-		receivedTime: time.Now(),
-		from:         from.id,
-		sealed:       f.Message,
+		Id:           randUInt64(),
+		ReceivedTime: time.Now(),
+		From:         from.id,
+		Sealed:       f.Message,
 	}
 
 	if !from.isPending {
-		if !c.unsealMessage(inboxMsg, from) || len(inboxMsg.message.Body) == 0 {
+		if !c.unsealMessage(inboxMsg, from) || len(inboxMsg.Message.Body) == 0 {
+			logger.Printf(logger.INFO, "Can't unseal message from %s. Dropping\n", from.name)
 			return
 		}
 	}
 
+	logger.Printf(logger.INFO, "Adding received messsage %s to inbox.\n", from.name)
+	c.MessageFeedbackChan <- MessageFeedback{
+		Mode: MF_RECEIVED,
+		Id:   inboxMsg.Id,
+	}
 	c.inbox = append(c.inbox, inboxMsg)
 	c.SaveState(false)
 }
@@ -248,12 +377,67 @@ func (c *Client) deleteOutboxMsg(id uint64) {
 	c.outbox = newOutbox
 }
 
+func (c *Client) sendAck(msg *InboxMessage) {
+	c.queueMutex.Lock()
+	for _, queuedMsg := range c.queue {
+		if queuedMsg.sending {
+			continue
+		}
+		if msg.From == queuedMsg.to && !queuedMsg.revocation {
+			proto := queuedMsg.message
+			proto.AlsoAck = append(proto.AlsoAck, msg.Message.GetId())
+			if !tooLarge(queuedMsg) {
+				c.queueMutex.Unlock()
+				c.log("ACK merged with queued message.")
+				return
+			}
+
+			proto.AlsoAck = proto.AlsoAck[:len(proto.AlsoAck)-1]
+			if len(proto.AlsoAck) == 0 {
+				proto.AlsoAck = nil
+			}
+		}
+	}
+	c.queueMutex.Unlock()
+
+	to := c.contacts[msg.From]
+	var myNextDH []byte
+	if to.ratchet == nil {
+		var nextDHPub [32]byte
+		curve25519.ScalarBaseMult(&nextDHPub, &to.currentDHPrivate)
+		myNextDH = nextDHPub[:]
+	}
+
+	id := randUInt64()
+	err := c.Send(to, &pond.Message{
+		Id:               proto.Uint64(id),
+		Time:             proto.Int64(time.Now().Unix()),
+		Body:             make([]byte, 0),
+		BodyEncoding:     pond.Message_RAW.Enum(),
+		MyNextDh:         myNextDH,
+		InReplyTo:        msg.Message.Id,
+		SupportedVersion: proto.Int32(protoVersion),
+	})
+	if err != nil {
+		c.log("Error sending message: %s", err)
+	}
+}
+
+func tooLarge(msg *OutboxMessage) bool {
+	messageBytes, err := proto.Marshal(msg.message)
+	if err != nil {
+		return true
+	}
+
+	return len(messageBytes) > pond.MaxSerializedMessage
+}
+
 func (c *Client) processServerAnnounce(m NewMessage) {
 	inboxMsg := &InboxMessage{
-		id:           randUInt64(),
-		receivedTime: time.Now(),
-		from:         0,
-		message:      m.announce.Message,
+		Id:           randUInt64(),
+		ReceivedTime: time.Now(),
+		From:         0,
+		Message:      m.announce.Message,
 	}
 
 	c.inbox = append(c.inbox, inboxMsg)
@@ -268,8 +452,8 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 			break
 		}
 	}
-
 	if msg == nil {
+		logger.Println(logger.INFO, "Message send result: no assigned message!")
 		return
 	}
 
@@ -314,13 +498,13 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 			}
 			bbsRev, ok := new(bbssig.Revocation).Unmarshal(rev.Revocation.Revocation)
 			if !ok {
-				logger.Printf(logger.WARN, "Failed to parse revocation from %s", to.name)
+				logger.Printf(logger.WARN, "Failed to parse revocation from %s\n", to.name)
 				return
 			}
 			to.generation++
 			if !to.myGroupKey.Update(bbsRev) {
 				to.revokedUs = true
-				logger.Printf(logger.INFO, "Revoked by %s", to.name)
+				logger.Printf(logger.INFO, "Revoked by %s\n", to.name)
 
 				newQueue := make([]*OutboxMessage, 0, len(c.queue))
 				c.queueMutex.Lock()
@@ -332,12 +516,14 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 				c.queue = newQueue
 				c.queueMutex.Unlock()
 			} else {
+				logger.Println(logger.INFO, "Group key updated")
 				to.myGroupKey.Group.Update(bbsRev)
 			}
 		}
 		return
 	}
 
+	logger.Println(logger.INFO, "Message send result: Success")
 	msg.sent = time.Now()
 	if msg.revocation {
 		c.deleteOutboxMsg(msg.id)

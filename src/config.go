@@ -93,6 +93,7 @@ type WebConfig struct {
 	Key         string `json:"key"`
 	Cert        string `json:"cert"`
 	FormPage    string `json:"formPage"`
+	UsagePage   string `json:"usagePage"`
 	ErrorPage   string `json:"errorPage"`
 	CaptchaFail string `json:"captchaFail"`
 }
