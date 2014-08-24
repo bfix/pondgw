@@ -76,7 +76,8 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 					if strings.HasPrefix(body[0], "To:") {
 						rcpt := strings.TrimSpace(body[0][3:])
 						logger.Printf(logger.INFO, "Forwarding message from '%s' to '%s'\n", n.Info, rcpt)
-						if err := SendEmailMessage(rcpt, msg.Message.Body); err != nil {
+						outMsg := append([]byte("From: "+n.Info+"\n"), msg.Message.Body...)
+						if err := SendEmailMessage(rcpt, outMsg); err != nil {
 							logger.Printf(logger.INFO, "Faild to forward message to '%s'\n", rcpt)
 						}
 

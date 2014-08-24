@@ -210,7 +210,8 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 		case strings.HasPrefix(body[0], "To:"):
 			rcpt := strings.TrimSpace(body[0][3:])
 			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", addr.Address, rcpt)
-			return SendPondMessage(rcpt, content.body)
+			outMsg := "From: " + addr.Address + "\n" + content.body
+			return SendPondMessage(rcpt, outMsg)
 		}
 		logger.Printf(logger.INFO, "Dropping signed/encrypted message from '%s'\n", addr.Address)
 	}
