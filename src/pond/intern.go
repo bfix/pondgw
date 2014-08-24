@@ -121,20 +121,12 @@ func (c *Client) transact(server *Server, req *pond.Request, anonymous bool) (*p
 	if err = conn.Handshake(); err != nil {
 		return nil, err
 	}
-	if err := conn.WriteProto(req); err != nil {
+	if err = conn.WriteProto(req); err != nil {
 		return nil, err
 	}
 	reply := new(pond.Reply)
-	if err := conn.ReadProto(reply); err != nil {
-		return reply, err
-	}
-	if reply.Status == nil || *reply.Status == pond.Reply_OK {
-		return reply, nil
-	}
-	if msg, ok := pond.Reply_Status_name[int32(*reply.Status)]; ok {
-		return reply, errors.New("error from server: " + msg)
-	}
-	return reply, errors.New("unknown error from server: " + strconv.Itoa(int(*reply.Status)))
+	err = conn.ReadProto(reply)
+	return reply, err
 }
 
 func (c *Client) indexOfQueuedMessage(msg *OutboxMessage) (index int) {
@@ -246,10 +238,13 @@ func (c *Client) poll() {
 				c.removeQueuedMessage(indexOfSentMessage)
 				c.queueMutex.Unlock()
 				c.messageSentChan <- MessageSendResult{id: head.id}
-			} else if *reply.Status == pond.Reply_GENERATION_REVOKED &&
-				reply.Revocation != nil {
+			} else if *reply.Status == pond.Reply_GENERATION_REVOKED {
 				c.queueMutex.Unlock()
-				c.messageSentChan <- MessageSendResult{id: head.id, revocation: reply.Revocation, extraRevocations: reply.ExtraRevocations}
+				if reply.Revocation == nil {
+					logger.Println(logger.INFO, "GENERATION_REVOKED, but no update attached.")
+				} else {
+					c.messageSentChan <- MessageSendResult{id: head.id, revocation: reply.Revocation, extraRevocations: reply.ExtraRevocations}
+				}
 			} else {
 				c.queueMutex.Unlock()
 			}
@@ -260,7 +255,22 @@ func (c *Client) poll() {
 			c.newMessageChan <- NewMessage{reply.Fetched, reply.Announce, ackChan}
 			<-ackChan
 		}
+
+		if err = replyToError(reply); err != nil {
+			logger.Printf(logger.INFO, "Error from server %s: %s\n", server.url, err)
+			continue
+		}
 	}
+}
+
+func replyToError(reply *pond.Reply) error {
+	if reply.Status == nil || *reply.Status == pond.Reply_OK {
+		return nil
+	}
+	if msg, ok := pond.Reply_Status_name[int32(*reply.Status)]; ok {
+		return errors.New(msg)
+	}
+	return errors.New("unknown error: " + strconv.Itoa(int(*reply.Status)))
 }
 
 func (c *Client) removeQueuedMessage(index int) {
@@ -351,18 +361,22 @@ NextCandidate:
 	}
 
 	if !from.isPending {
-		if !c.unsealMessage(inboxMsg, from) || len(inboxMsg.Message.Body) == 0 {
+		if !c.unsealMessage(inboxMsg, from) {
 			logger.Printf(logger.INFO, "Can't unseal message from %s. Dropping\n", from.name)
+			return
+		}
+		if len(inboxMsg.Message.Body) == 0 {
 			return
 		}
 	}
 
-	logger.Printf(logger.INFO, "Adding received messsage %s to inbox.\n", from.name)
+	logger.Printf(logger.INFO, "Adding received message from %s to inbox.\n", from.name)
+	c.inbox = append(c.inbox, inboxMsg)
 	c.MessageFeedbackChan <- MessageFeedback{
 		Mode: MF_RECEIVED,
 		Id:   inboxMsg.Id,
+		Info: c.contacts[inboxMsg.From].name,
 	}
-	c.inbox = append(c.inbox, inboxMsg)
 	c.SaveState(false)
 }
 
@@ -515,6 +529,7 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 				}
 				c.queue = newQueue
 				c.queueMutex.Unlock()
+				c.SaveState(false)
 			} else {
 				logger.Println(logger.INFO, "Group key updated")
 				to.myGroupKey.Group.Update(bbsRev)
