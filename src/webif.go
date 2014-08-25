@@ -31,20 +31,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"net/http"
-	"regexp"
 	"strings"
-)
-
-///////////////////////////////////////////////////////////////////////
-// Module-global constants and variables
-
-const (
-	mailAddrRE = "^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*" +
-		"@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$"
-)
-
-var (
-	emailRegexp = regexp.MustCompile(mailAddrRE)
 )
 
 ///////////////////////////////////////////////////////////////////////

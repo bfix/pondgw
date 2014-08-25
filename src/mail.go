@@ -23,6 +23,7 @@ package main
 // Import external declarations.
 
 import (
+	"bufio"
 	"bytes"
 	"code.google.com/p/go.crypto/openpgp"
 	"code.google.com/p/go.crypto/openpgp/armor"
@@ -35,16 +36,18 @@ import (
 	"io/ioutil"
 	mrand "math/rand"
 	"mime/multipart"
+	"net/http"
 	"net/mail"
 	"net/textproto"
 	"os"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
 )
 
 ///////////////////////////////////////////////////////////////////////
-// Module-local/global constants
+// Module-local/global constants and variables.
 
 const (
 	ct_MP_MIX = "multipart/mixed;"
@@ -54,6 +57,14 @@ const (
 	mode_SIGN_ENC
 
 	MAIL_CMD_QUIT = iota
+
+	mailAddrRE = "^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*" +
+		"@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.?)+(?P<tld>[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)?$"
+)
+
+var (
+	emailRegexp = regexp.MustCompile(mailAddrRE)
+	tlds        = make([]string, 0)
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -93,6 +104,25 @@ func InitMailModule() error {
 	g.pubkey, err = GetArmoredPublicKey(g.identity)
 	if err != nil {
 		return err
+	}
+	resp, err := http.Get("https://data.iana.org/TLD/tlds-alpha-by-domain.txt")
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	list := bufio.NewReader(resp.Body)
+	for {
+		data, _, err := list.ReadLine()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if data[0] == '#' {
+			continue
+		}
+		tlds = append(tlds, string(data))
 	}
 	return nil
 }
@@ -444,4 +474,34 @@ func SendEmailMessage(toAddr string, body []byte) error {
 		logger.Println(logger.ERROR, err.Error())
 	}
 	return err
+}
+
+//---------------------------------------------------------------------
+/*
+ * Check if an email is valid.
+ * @param addr string - email address to be checked
+ * @return bool - is email address valid?
+ */
+func IsValidEmailAddress(addr string) bool {
+	if !emailRegexp.MatchString(addr) {
+		return false
+	}
+	names := emailRegexp.SubexpNames()
+	values := emailRegexp.FindAllStringSubmatch(addr, -1)
+	tld := ""
+	for i, n := range names {
+		if n == "tld" {
+			tld = strings.ToUpper(values[0][i])
+			break
+		}
+	}
+	if len(tld) == 0 {
+		return true
+	}
+	for _, t := range tlds {
+		if tld == t {
+			return true
+		}
+	}
+	return false
 }
