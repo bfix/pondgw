@@ -28,7 +28,7 @@
 	       						<input type="text" size="42" name="sharedSecret" placeholder="Shared Secret" required>
 	       					</p	>
 		       				<p>Once the key exchange is complete, you can 
-		       				<a href="pond.html">start sending messages to registered EMail users</a>.</p>
+		       				<a href="usage#pond">start sending messages to registered EMail users</a>.</p>
 
 							<div>
 								<p>Type the numbers you see in the picture below:</p>
@@ -61,7 +61,7 @@
 		       				</p>
 		       				<p>You will receive an email notification about your registration.
 		       				Once the registration is complete, you can 
-		       				<a href="email.html">start sending messages to registered Pond users</a>.
+		       				<a href="usage#email">start sending messages to registered Pond users</a>.
 		       				If you do not receive a notification email within reasonable time,
 		       				your registration may have failed and you should try again. Please note: you
 		       				will <b>not</b> receive an email in case of an already registered
