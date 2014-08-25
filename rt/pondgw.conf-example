@@ -10,7 +10,8 @@
 		"docs": "./www",
 		"key": "webif.key",
 		"cert": "cert.pem",
-		"formPage": "www/RegForm.htpl",		
+		"formPage": "www/RegForm.htpl",
+		"usagePage": "www/usage.htpl",
 		"errorPage": "www/Error.htpl",
 		"captchaFail": "www/captcha/CaptchaFail.htpl"
 	},
@@ -53,6 +54,5 @@
 		"mailPending": "www/register/MailPending.htpl",
 		"mailConfirm": "www/confirm/MailConfirm.htpl",
 		"pondRegSuccess": "www/register/PondRegSuccess.htpl",
-		"usagePage": "www/usage.htpl"
 	}
 }
