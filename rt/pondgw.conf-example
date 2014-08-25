@@ -7,6 +7,7 @@
 	"webif": {
 		"listen": "127.0.0.1:10443",
 		"host": "https://127.0.0.1:10443",
+		"docs": "./www",
 		"key": "webif.key",
 		"cert": "cert.pem",
 		"formPage": "www/RegForm.htpl",		

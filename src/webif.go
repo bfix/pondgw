@@ -298,7 +298,7 @@ func httpsServe() {
 		logger.Println(logger.INFO, "[webif] HTTPS server disabled.")
 		return
 	}
-	http.Handle("/", http.FileServer(http.Dir("./www")))
+	http.Handle("/", http.FileServer(http.Dir(g.config.Web.Docs)))
 	http.HandleFunc("/usage", usageHandler)
 	http.HandleFunc("/register", formHandler)
 	http.HandleFunc("/register/", regHandler)
