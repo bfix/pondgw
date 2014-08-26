@@ -49,7 +49,7 @@ import (
 const (
 	MAIL_CMD_QUIT = iota
 
-	mailChar   = "[a-z0-9!#$%&'*/=?^_`{|}~-]"
+	mailChar   = "[a-zA-Z0-9!#$%&'*/=?^_`{|}~-]"
 	mailAddrRE = "^" + mailChar + "+(?:\\." + mailChar + "+)*(\\+(?P<sub>" + mailChar + "+)*)?" +
 		"@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.?)+(?P<tld>[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)?$"
 )
@@ -212,33 +212,30 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 		return err
 	}
 	body := strings.Split(content.Body, "\n")
-	if content.Mode == network.MODE_PLAIN {
-		if strings.HasPrefix(body[0], "register") {
-			return ValidateMailUser(content.From, content.Key)
-		}
-		if sub := GetSubAddress(content.From); len(sub) > 0 {
-			logger.Printf(logger.INFO, "Received message to sub-address %s\n", sub)
-			rcpt, err := g.idEngine.GetPeerId(sub)
-			if err != nil {
-				return err
-			}
-			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt.String())
-			outMsg := "From: " + content.From + "\n" + content.Body
-			return SendPondMessage(rcpt.String(), outMsg)
-		}
-		logger.Printf(logger.INFO, "Dropping unencrypted message from '%s'\n", content.From)
-	} else if content.Mode == network.MODE_SIGN_ENC {
-		switch {
-		case strings.HasPrefix(body[0], "To:"):
-			rcpt := strings.TrimSpace(body[0][3:])
-			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt)
-			outMsg := "From: " + content.From + "\n" + content.Body
-			return SendPondMessage(rcpt, outMsg)
-		}
-		logger.Printf(logger.INFO, "Dropping signed/encrypted message from '%s'\n", content.From)
-	} else if content.Mode == network.MODE_SIGN {
-	} else if content.Mode == network.MODE_ENC {
+	
+	if strings.HasPrefix(body[0], "register") {
+		return ValidateMailUser(content.From, content.Key)
 	}
+	if strings.HasPrefix(body[0], "To:") {
+		rcpt := strings.TrimSpace(body[0][3:])
+		logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt)
+		outMsg := "From: " + content.From + "\n\n" + content.Body
+		return SendPondMessage(rcpt, outMsg)
+	}
+	if sub := GetSubAddress(content.To); len(sub) > 0 {
+		logger.Printf(logger.INFO, "Received message to sub-address %s\n", sub)
+		rcpt, err := g.idEngine.GetPeerId(sub)
+		if err != nil {
+			return err
+		}
+		logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt.String())
+		outMsg := "From: " + content.From +
+			"\nTo: " + content.To +
+			"\nSubject: " + content.Subject +
+			"\n\n" + content.Body
+		return SendPondMessage(rcpt.String(), outMsg)
+	}
+	logger.Printf(logger.INFO, "Dropping message '%v'\n", content)
 	return nil
 }
 

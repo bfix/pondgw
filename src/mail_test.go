@@ -47,6 +47,7 @@ func TestEMailValidator(t *testing.T) {
 		{"+", "disposable.style.email.with+symbol@example.com"},
 		{"+", "other.email-with-dash@example.com"},
 		{"+", "user@localserver"},
+		{"+", "peg-test+7qjTsnM4VBYAut4hStvWTuoPwXFSvPxD2ZLfa8kFjXA1@hoi-polloi.org"},
 		{"-", "Abc.example.com"},
 		{"-", "A@b@c@example.com"},
 		{"-", "a\"b(c)d,e:f;g<h>i[j\\k]l@example.com"},
