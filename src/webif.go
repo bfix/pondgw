@@ -26,6 +26,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/agl/pond/panda"
+	"github.com/bfix/gospel/crypto"
 	"github.com/bfix/gospel/logger"
 	"github.com/dchest/captcha"
 	"html/template"
@@ -114,16 +115,16 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 			msgs = append(msgs, "You have specified an invalid shared secret")
 			return false
 		}
-		id, err := GeneratePeerId()
+		id, err := g.idEngine.NewPeerId()
 		if err != nil {
 			msgs = append(msgs, err.Error())
 			return false
 		}
-		if err = g.client.StartKeyExchange(id, sharedSecret); err != nil {
+		if err = g.client.StartKeyExchange(id.String(), sharedSecret); err != nil {
 			msgs = append(msgs, "Failed to start key exchange: "+err.Error())
 			return false
 		}
-		_, err = InsertPondUserData(id, statPENDING)
+		_, err = InsertPondUserData(id.String(), statPENDING)
 		if err == errAlreadyRegistered {
 			msgs = append(msgs, "(Temporarily) failed to register peer %s: "+err.Error())
 			return false
@@ -131,7 +132,7 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 		param := struct {
 			PeerId string
 		}{
-			PeerId: id,
+			PeerId: id.String(),
 		}
 		RenderPage(resp, g.config.Tpls.PondRegSuccess, &param)
 		return true
@@ -152,7 +153,7 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 			msgs = append(msgs, "Failed to read GnuPG public key")
 			return false
 		}
-		if _, err := GetPublicKey(pubKey); err != nil {
+		if _, err := crypto.GetPublicKey(pubKey); err != nil {
 			msgs = append(msgs, "Invalid GnuPG public key")
 			return false
 		}

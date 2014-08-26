@@ -114,6 +114,7 @@ type ControlConfig struct {
  */
 type Config struct {
 	Control  *ControlConfig  `json:"control"`
+	IdEngine string          `json:"idEngine"`
 	Database *DatabaseConfig `json:"database"`
 	Web      *WebConfig      `json:"webif"`
 	Proxy    string          `json:"proxy"` // SOCKS5 URL
@@ -134,7 +135,7 @@ type Config struct {
  */
 func parseConfig(fileName string) (config *Config, err error) {
 
-	// pasre configuration file
+	// parse configuration file
 	file, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		return nil, err

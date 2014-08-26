@@ -33,6 +33,7 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/bfix/gospel/bitcoin/util"
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
 	"io"
@@ -53,6 +54,7 @@ type Global struct {
 
 	identity *openpgp.Entity
 	pubkey   []byte
+	idEngine *IdEngine
 
 	db *sql.DB
 
@@ -108,9 +110,14 @@ func main() {
 
 	// initialize modules (and global parameters)
 	g.prng = rand.Reader
-	if err = InitPondModule(); err == nil {
-		if err = InitMailModule(); err == nil {
-			err = InitUserModule()
+	data, err := util.Base58Decode(g.config.IdEngine)
+	if err == nil {
+		if g.idEngine, err = RestoreIdEngine(data); err == nil {
+			if err = InitPondModule(); err == nil {
+				if err = InitMailModule(); err == nil {
+					err = InitUserModule()
+				}
+			}
 		}
 	}
 	if err != nil {
@@ -134,7 +141,7 @@ func main() {
 	mailCtrl := make(chan int)
 	go PollMailServer(mailMsgIn, mailCtrl)
 
-	heartbeat := time.NewTicker(6 * time.Hour)
+	heartbeat := time.NewTicker(24 * time.Hour)
 	for {
 		select {
 		// handle mail message
@@ -153,6 +160,7 @@ func main() {
 		// handle heartbeat and drop timed-out sessions
 		case now := <-heartbeat.C:
 			logger.Println(logger.INFO, "Heartbeat: "+now.String())
+			logger.Rotate()
 		}
 	}
 }

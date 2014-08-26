@@ -23,14 +23,10 @@ package main
 // Import external declarations.
 
 import (
-	"bytes"
-	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/armor"
-	"code.google.com/p/go.crypto/openpgp/packet"
 	"database/sql"
 	"encoding/hex"
 	"errors"
-	"github.com/bfix/gospel/bitcoin/util"
+	"github.com/bfix/gospel/crypto"
 	"github.com/bfix/gospel/logger"
 	"github.com/go-sql-driver/mysql"
 	"time"
@@ -45,10 +41,6 @@ const (
 	statREGISTERED
 	statACTIVE
 	statREVOKED
-
-	keySIGN = iota
-	keyENCRYPT
-	keyAUTH
 )
 
 var (
@@ -158,7 +150,7 @@ func GetMailUserDataByToken(token string) (*MailUserData, error) {
  * @return error - error instance or nil
  */
 func InsertMailUserData(toAddr string, key []byte, status int) (int, string, error) {
-	_, err := GetPublicKey(key)
+	_, err := crypto.GetPublicKey(key)
 	if err != nil {
 		return 0, "", errInvalidPubKey
 	}
@@ -406,124 +398,4 @@ func UpdatePondUserStatus(peer string, status int) error {
 		return errDatabase
 	}
 	return nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Generate a peer identifier for registering Pond users.
- * @return string - new peer id
- * @return error - error instance or nil
- */
-func GeneratePeerId() (string, error) {
-	buf := make([]byte, 8)
-	for i := 0; i < 100; i++ {
-		g.prng.Read(buf)
-		id := util.Base58Encode(buf)
-		if _, err := GetPondUserData(id); err != nil {
-			return id, nil
-		}
-	}
-	return "", errors.New("Failed to generate new peer id of Pond user")
-}
-
-//---------------------------------------------------------------------
-/*
- * Check if a peer identifier is syntactically valid.
- * @oaram id string - peer id to be checked
- * @return bool - is peer id valid?
- */
-func IsValidPeerId(id string) bool {
-	buf, err := util.Base58Decode(id)
-	if err != nil {
-		return false
-	}
-	return len(buf) == 8
-}
-
-//---------------------------------------------------------------------
-/*
- * Convert a ASCII-armored public key representation into
- * an OpenPGP key.
- * @param buf []byte - armored public key representation
- * @return *packet.PublicKey - OpenPGP key
- * @return error - error instance or nil
- */
-func GetPublicKey(buf []byte) (*packet.PublicKey, error) {
-	keyRdr, err := armor.Decode(bytes.NewBuffer(buf))
-	if err != nil {
-		return nil, err
-	}
-	keyData, err := packet.Read(keyRdr.Body)
-	if err != nil {
-		return nil, err
-	}
-	key, ok := keyData.(*packet.PublicKey)
-	if !ok {
-		return nil, errors.New("Invalid public key")
-	}
-	return key, nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Get armored public key for entity.
- * @param ent *openpgp.Entity - OpenPGP entity
- * @return []byte - armored public key representation
- * @return error - error instance or nil
- */
-func GetArmoredPublicKey(ent *openpgp.Entity) ([]byte, error) {
-	out := new(bytes.Buffer)
-	wrt, err := armor.Encode(out, openpgp.PublicKeyType, nil)
-	if err != nil {
-		return nil, err
-	}
-	err = ent.Serialize(wrt)
-	wrt.Close()
-	if err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Get a suitable subkey from entity.
- * @param ent *openpgp.Entity - main entity
- * @param mode int - key mode (keyXXX)
- * @return *openpgp.Key - found subkey
- */
-func GetKeyFromIdentity(ent *openpgp.Entity, mode int) *openpgp.Key {
-	key := new(openpgp.Key)
-	key.Entity = ent
-	ki := -1
-	for i, sk := range ent.Subkeys {
-		switch mode {
-		case keySIGN:
-			if sk.PublicKey.PubKeyAlgo.CanSign() {
-				ki = i
-				break
-			}
-		case keyENCRYPT:
-			if sk.PublicKey.PubKeyAlgo.CanEncrypt() {
-				ki = i
-				break
-			}
-		case keyAUTH:
-			ki = i
-			break
-		}
-	}
-	if ki >= 0 {
-		key.PublicKey = ent.Subkeys[ki].PublicKey
-		key.PrivateKey = ent.Subkeys[ki].PrivateKey
-		key.SelfSignature = ent.Subkeys[ki].Sig
-	} else {
-		key.PublicKey = ent.PrimaryKey
-		key.PrivateKey = ent.PrivateKey
-		for _, id := range ent.Identities {
-			key.SelfSignature = id.SelfSignature
-			break
-		}
-	}
-	return key
 }
