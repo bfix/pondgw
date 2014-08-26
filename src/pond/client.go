@@ -72,7 +72,7 @@ func GetClient(
 	stateLock, err := stateFile.Lock(false)
 	if err == nil {
 		if stateLock == nil {
-			log("Waiting for locked state file...\n")
+			log("Waiting for locked state file...")
 			for {
 				if stateLock, err = stateFile.Lock(false); stateLock != nil {
 					break
@@ -80,16 +80,16 @@ func GetClient(
 				time.Sleep(1 * time.Second)
 			}
 		}
-		log("Trying to read Pond state file...\n")
+		log("Trying to read Pond state file...")
 		state, err := stateFile.Read(stateFilePW)
 		if err != nil {
-			log("Reading of Pond state file failed!\n")
+			log("Reading of Pond state file failed!")
 			return nil, err
 		}
-		log("Instanciating Pond client from state file\n")
+		log("Instanciating Pond client from state file")
 		c, err = newClientFromState(state, prng, mfc, log)
 		if err != nil {
-			log("Pond client creation failed\n")
+			log("Pond client creation failed")
 			return nil, err
 		}
 		c.log = log
@@ -97,11 +97,11 @@ func GetClient(
 		c.stateFile = stateFile
 	} else {
 		if !os.IsNotExist(err) {
-			log("Lock creation failed: %s\n", err.Error())
+			log("Lock creation failed: %s", err.Error())
 			return nil, err
 		}
 
-		log("Instanciating new Pond client\n")
+		log("Instanciating new Pond client")
 		pub, priv, err := ed25519.GenerateKey(prng)
 		if err != nil {
 			return nil, err
@@ -140,7 +140,7 @@ func GetClient(
 		}
 		c.log = log
 		if err != nil {
-			log("Pond client creation failed: %s\n", err.Error())
+			log("Pond client creation failed: %s", err.Error())
 			return nil, err
 		}
 		newAccount = true
@@ -158,13 +158,13 @@ func GetClient(
 		stateFile.Create(stateFilePW)
 	}
 
-	log("Starting state handler\n")
+	log("Starting state handler")
 	go c.stateFile.StartWriter(c.writerChan, c.writerDone)
 
 	if newAccount {
-		log("Saving state of new Pond client\n")
+		log("Saving state of new Pond client")
 		if err = c.SaveState(false); err != nil {
-			log("Pond client persistence failed: %s\n", err.Error())
+			log("Pond client persistence failed: %s", err.Error())
 		}
 	}
 	c.getNewPanda = func() panda.MeetingPlace {
@@ -173,7 +173,7 @@ func GetClient(
 			URL:        pandaAddr,
 		}
 	}
-	log("Pond client initialization done - starting client\n")
+	log("Pond client initialization done - starting client")
 	return c, nil
 }
 
