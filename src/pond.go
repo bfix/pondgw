@@ -24,6 +24,7 @@ package main
 
 import (
 	"./pond"
+	"fmt"
 	"github.com/bfix/gospel/logger"
 	"strings"
 )
@@ -36,7 +37,8 @@ import (
 func InitPondModule() error {
 
 	log := func(format string, args ...interface{}) {
-		logger.Printf(logger.INFO, format, args...)
+		msg := fmt.Sprintf(format, args...)
+		logger.Println(logger.INFO, msg)
 	}
 	mfc := make(chan pond.MessageFeedback)
 	go HandleMessageNotifications(mfc)
