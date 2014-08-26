@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	pond "github.com/agl/pond/protos"
-	"github.com/bfix/gospel/logger"
 	"io"
 	"time"
 )
@@ -92,7 +91,7 @@ func (c *Client) decryptMessageInner(sealed []byte, nonce *[24]byte, from *Conta
 
 func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 	if from.isPending {
-		logger.Println(logger.ERROR, "was asked to unseal message from pending contact")
+		c.log("was asked to unseal message from pending contact")
 		panic(0)
 	}
 
@@ -100,26 +99,26 @@ func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 	plaintext, ok := c.decryptMessage(sealed, from)
 
 	if !ok {
-		logger.Println(logger.WARN, "Failed to decrypt message")
+		c.log("Failed to decrypt message")
 		return false
 	}
 
 	if len(plaintext) < 4 {
-		logger.Println(logger.WARN, "Plaintext too small to process")
+		c.log("Plaintext too small to process")
 		return false
 	}
 
 	mLen := int(binary.LittleEndian.Uint32(plaintext[:4]))
 	plaintext = plaintext[4:]
 	if mLen < 0 || mLen > len(plaintext) {
-		logger.Printf(logger.WARN, "Plaintext length incorrect: %d\n", mLen)
+		c.log("Plaintext length incorrect: %d", mLen)
 		return false
 	}
 	plaintext = plaintext[:mLen]
 
 	msg := new(pond.Message)
 	if err := proto.Unmarshal(plaintext, msg); err != nil {
-		logger.Println(logger.WARN, "Failed to parse message: "+err.Error())
+		c.log("Failed to parse message: " + err.Error())
 		return false
 	}
 
@@ -128,14 +127,14 @@ func (c *Client) unsealMessage(inboxMsg *InboxMessage, from *Contact) bool {
 			candidate.Id != inboxMsg.Id &&
 			candidate.Message != nil &&
 			*candidate.Message.Id == *msg.Id {
-			logger.Printf(logger.WARN, "Dropping duplicate message from %s\n", from.name)
+			c.log("Dropping duplicate message from %s", from.name)
 			return false
 		}
 	}
 
 	if from.ratchet == nil {
 		if l := len(msg.MyNextDh); l != len(from.theirCurrentDHPublic) {
-			logger.Printf(logger.WARN, "Bad Diffie-Hellman value length: %d", l)
+			c.log("Bad Diffie-Hellman value length: %d", l)
 			return false
 		}
 
@@ -188,11 +187,11 @@ func (c *Client) processSigningRequest(sigReq SigningRequest) {
 
 	messageBytes, err := proto.Marshal(sigReq.msg.message)
 	if err != nil {
-		logger.Printf(logger.ERROR, "Failed to sign outgoing message: %s\n", err)
+		c.log("Failed to sign outgoing message: %s", err)
 		return
 	}
 	if len(messageBytes) > pond.MaxSerializedMessage {
-		logger.Println(logger.ERROR, "Failed to sign outgoing message because it's too large")
+		c.log("Failed to sign outgoing message because it's too large")
 		return
 	}
 
@@ -214,7 +213,7 @@ func (c *Client) processSigningRequest(sigReq SigningRequest) {
 
 		public, private, err := box.GenerateKey(c.prng)
 		if err != nil {
-			logger.Printf(logger.INFO, "Failed to generate key for outgoing message: %s\n", err)
+			c.log("Failed to generate key for outgoing message: %s", err)
 			return
 		}
 		box.Seal(x[:0], public[:], &outerNonce, &to.theirCurrentDHPublic, &to.lastDHPrivate)
@@ -233,7 +232,7 @@ func (c *Client) processSigningRequest(sigReq SigningRequest) {
 	sha.Reset()
 	groupSig, err := to.myGroupKey.Sign(c.prng, digest, sha)
 	if err != nil {
-		logger.Printf(logger.INFO, "Failed to sign outgoing message: %s\n", err)
+		c.log("Failed to sign outgoing message: %s", err)
 		return
 	}
 

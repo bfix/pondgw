@@ -15,7 +15,6 @@ import (
 	"github.com/agl/pond/client/disk"
 	pond "github.com/agl/pond/protos"
 	"github.com/agl/pond/transport"
-	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
 	mrand "math/rand"
 	"net/url"
@@ -69,7 +68,10 @@ func NewPublicIdentityFromBase32(s string) (*PublicIdentity, error) {
 }
 
 func NewRandomIdentity() (*Identity, error) {
-	secret := randBytes(32)
+	secret, err := randBytes(32)
+	if err != nil {
+		return nil, err
+	}
 	id, err := NewIdentity(secret)
 	if err != nil {
 		return nil, err
@@ -168,11 +170,16 @@ func (c *Client) poll() {
 			}
 
 			var timerChan <-chan time.Time
-			seed := int64(binary.LittleEndian.Uint64(randBytes(8)))
+			val, err := randBytes(8)
+			if err != nil {
+				c.log("Failed to generate random bytes?!")
+				continue
+			}
+			seed := int64(binary.LittleEndian.Uint64(val))
 			r := mrand.New(mrand.NewSource(seed))
 			delaySeconds := r.ExpFloat64() * transactionRateSeconds
 			delay := time.Duration(delaySeconds*1000) * time.Millisecond
-			logger.Printf(logger.INFO, "Next network transaction in %s seconds\n", delay)
+			c.log("Next network transaction in %s seconds", delay)
 			timerChan = time.After(delay)
 
 			select {
@@ -194,7 +201,7 @@ func (c *Client) poll() {
 			isFetch = true
 			req = &pond.Request{Fetch: &pond.Fetch{}}
 			server = c.server
-			logger.Println(logger.INFO, "Starting fetch from home server")
+			c.log("Starting fetch from home server")
 			lastWasSend = false
 		} else {
 			head = c.queue[0]
@@ -205,7 +212,7 @@ func (c *Client) poll() {
 			if err != nil {
 				continue
 			}
-			logger.Printf(logger.INFO, "Starting message transmission to %s\n", server.url)
+			c.log("Starting message transmission to %s", server.url)
 			if head.revocation {
 				useAnonymousIdentity = false
 			}
@@ -224,7 +231,7 @@ func (c *Client) poll() {
 		}
 		reply, err := c.transact(server, req, useAnonymousIdentity)
 		if err != nil {
-			logger.Printf(logger.INFO, "Transaction failed: %s\n", err.Error())
+			c.log("Transaction failed: %s", err.Error())
 			continue
 		}
 		if !isFetch {
@@ -241,7 +248,7 @@ func (c *Client) poll() {
 			} else if *reply.Status == pond.Reply_GENERATION_REVOKED {
 				c.queueMutex.Unlock()
 				if reply.Revocation == nil {
-					logger.Println(logger.INFO, "GENERATION_REVOKED, but no update attached.")
+					c.log("GENERATION_REVOKED, but no update attached.")
 				} else {
 					c.messageSentChan <- MessageSendResult{id: head.id, revocation: reply.Revocation, extraRevocations: reply.ExtraRevocations}
 				}
@@ -257,7 +264,7 @@ func (c *Client) poll() {
 		}
 
 		if err = replyToError(reply); err != nil {
-			logger.Printf(logger.INFO, "Error from server %s: %s\n", server.url, err)
+			c.log("Error from server %s: %s", server.url, err)
 			continue
 		}
 	}
@@ -314,12 +321,12 @@ func (c *Client) processFetch(m NewMessage) {
 			}
 		}
 		if !found {
-			logger.Println(logger.ERROR, "Received message with bad group signature!")
+			c.log("Received message with bad group signature!")
 			return
 		}
 	}
 	if !ok {
-		logger.Println(logger.ERROR, "Failed to open group signature!")
+		c.log("Failed to open group signature!")
 		return
 	}
 
@@ -339,17 +346,17 @@ NextCandidate:
 	}
 
 	if from == nil {
-		logger.Printf(logger.ERROR, "Message from unknown contact. Dropping. Tag: %x\n", tag)
+		c.log("Message from unknown contact. Dropping. Tag: %x", tag)
 		return
 	}
 
 	if from.revoked {
-		logger.Printf(logger.ERROR, "Message from revoked contact %s. Dropping\n", from.name)
+		c.log("Message from revoked contact %s. Dropping", from.name)
 		return
 	}
 
 	if len(f.Message) < box.Overhead+24 {
-		logger.Println(logger.WARN, "Message too small to process")
+		c.log("Message too small to process")
 		return
 	}
 
@@ -362,7 +369,7 @@ NextCandidate:
 
 	if !from.isPending {
 		if !c.unsealMessage(inboxMsg, from) {
-			logger.Printf(logger.INFO, "Can't unseal message from %s. Dropping\n", from.name)
+			c.log("Can't unseal message from %s. Dropping", from.name)
 			return
 		}
 		if len(inboxMsg.Message.Body) == 0 {
@@ -370,7 +377,7 @@ NextCandidate:
 		}
 	}
 
-	logger.Printf(logger.INFO, "Adding received message from %s to inbox.\n", from.name)
+	c.log("Adding received message from %s to inbox.", from.name)
 	c.inbox = append(c.inbox, inboxMsg)
 	c.MessageFeedbackChan <- MessageFeedback{
 		Mode: MF_RECEIVED,
@@ -467,7 +474,7 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 		}
 	}
 	if msg == nil {
-		logger.Println(logger.INFO, "Message send result: no assigned message!")
+		c.log("Message send result: no assigned message!")
 		return
 	}
 
@@ -487,19 +494,19 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 			}
 
 			if gen := *rev.Revocation.Generation; gen != to.generation {
-				logger.Printf(logger.INFO, "Message to '%s' resulted in revocation for generation %d, but current generation is %d\n", to.name, gen, to.generation)
+				c.log("Message to '%s' resulted in revocation for generation %d, but current generation is %d", to.name, gen, to.generation)
 				return
 			}
 
 			revBytes, err := proto.Marshal(rev.Revocation)
 			if err != nil {
-				logger.Printf(logger.WARN, "Failed to marshal revocation message: %s\n", err)
+				c.log("Failed to marshal revocation message: %s", err)
 				return
 			}
 
 			var sig [ed25519.SignatureSize]byte
 			if revSig := rev.Signature; copy(sig[:], revSig) != len(sig) {
-				logger.Printf(logger.WARN, "Bad signature length on revocation (%d bytes) from %s\n", len(revSig), to.name)
+				c.log("Bad signature length on revocation (%d bytes) from %s", len(revSig), to.name)
 				return
 			}
 
@@ -507,18 +514,18 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 			signed = append(signed, revocationSignaturePrefix...)
 			signed = append(signed, revBytes...)
 			if !ed25519.Verify(&to.theirPub, signed, &sig) {
-				logger.Printf(logger.WARN, "Bad signature on revocation from %s\n", to.name)
+				c.log("Bad signature on revocation from %s", to.name)
 				return
 			}
 			bbsRev, ok := new(bbssig.Revocation).Unmarshal(rev.Revocation.Revocation)
 			if !ok {
-				logger.Printf(logger.WARN, "Failed to parse revocation from %s\n", to.name)
+				c.log("Failed to parse revocation from %s", to.name)
 				return
 			}
 			to.generation++
 			if !to.myGroupKey.Update(bbsRev) {
 				to.revokedUs = true
-				logger.Printf(logger.INFO, "Revoked by %s\n", to.name)
+				c.log("Revoked by %s", to.name)
 
 				newQueue := make([]*OutboxMessage, 0, len(c.queue))
 				c.queueMutex.Lock()
@@ -531,14 +538,14 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 				c.queueMutex.Unlock()
 				c.SaveState(false)
 			} else {
-				logger.Println(logger.INFO, "Group key updated")
+				c.log("Group key updated")
 				to.myGroupKey.Group.Update(bbsRev)
 			}
 		}
 		return
 	}
 
-	logger.Println(logger.INFO, "Message send result: Success")
+	c.log("Message send result: Success")
 	msg.sent = time.Now()
 	if msg.revocation {
 		c.deleteOutboxMsg(msg.id)
@@ -546,10 +553,13 @@ func (c *Client) processMessageSent(msr MessageSendResult) {
 	c.SaveState(false)
 }
 
-func randBytes(size int) []byte {
+func randBytes(size int) ([]byte, error) {
 	data := make([]byte, size)
-	rand.Read(data)
-	return data
+	n, err := rand.Read(data)
+	if err != nil || n != size {
+		return nil, err
+	}
+	return data, nil
 }
 
 func randUInt32() uint32 {
@@ -557,7 +567,7 @@ func randUInt32() uint32 {
 }
 
 func randUInt64() uint64 {
-	buf := randBytes(8)
+	buf, _ := randBytes(8)
 	res, _ := binary.Varint(buf)
 	return uint64(res)
 }

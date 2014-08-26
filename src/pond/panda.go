@@ -10,7 +10,6 @@ import (
 	"github.com/agl/pond/bbssig"
 	"github.com/agl/pond/panda"
 	pond "github.com/agl/pond/protos"
-	"github.com/bfix/gospel/logger"
 )
 
 func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
@@ -24,7 +23,7 @@ func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 		id:        randUInt64(),
 	}
 	if err := c.newKeyExchange(contact); err != nil {
-		c.log("Startup key exchange failed with " + err.Error())
+		c.log("Startup key exchange failed with %s", err.Error())
 		return err
 	}
 
@@ -50,7 +49,7 @@ func (c *Client) StartKeyExchange(peer, sharedSecret string) error {
 	c.pandaWaitGroup.Add(1)
 	contact.pandaShutdownChan = make(chan struct{})
 	go c.runPANDA(contact.pandaKeyExchange, contact.id, contact.name, contact.pandaShutdownChan)
-	logger.Println(logger.INFO, "Key exchange running in background.")
+	c.log("Key exchange running in background.\n")
 	return nil
 }
 
@@ -87,7 +86,7 @@ func (c *Client) runPANDA(serialisedKeyExchange []byte, id uint64, name string, 
 	var result []byte
 	defer c.pandaWaitGroup.Done()
 
-	logger.Println(logger.INFO, "Starting PANDA key exchange with "+name)
+	c.log("Starting PANDA key exchange with %s", name)
 
 	kx, err := panda.UnmarshalKeyExchange(c.prng, c.getNewPanda(), serialisedKeyExchange)
 	kx.Testing = false
@@ -97,16 +96,16 @@ func (c *Client) runPANDA(serialisedKeyExchange []byte, id uint64, name string, 
 			id:         id,
 			serialised: serialised,
 		}
-		logger.Printf(logger.INFO, "Key exchange with %s: %s", name, fmt.Sprintf(format, args...))
+		c.log("Key exchange with %s: %s", name, fmt.Sprintf(format, args...))
 	}
 	kx.ShutdownChan = shutdown
 
 	if err == nil {
-		logger.Printf(logger.INFO, "Performing key exchange...")
+		c.log("Performing key exchange...")
 		result, err = kx.Run()
 	}
 	if err == panda.ShutdownErr {
-		logger.Printf(logger.INFO, "PANDA shutdown error")
+		c.log("PANDA shutdown error")
 		return
 	}
 	c.pandaChan <- PandaUpdate{
@@ -115,9 +114,9 @@ func (c *Client) runPANDA(serialisedKeyExchange []byte, id uint64, name string, 
 		result: result,
 	}
 	if err != nil {
-		logger.Printf(logger.INFO, "PANDA update failed: %s\n", err.Error())
+		c.log("PANDA update failed: %s", err.Error())
 	} else {
-		logger.Println(logger.INFO, "PANDA updated successfully")
+		c.log("PANDA updated successfully")
 	}
 }
 
@@ -131,7 +130,7 @@ func (c *Client) processPANDAUpdate(update PandaUpdate) {
 		contact.pandaResult = update.err.Error()
 		contact.pandaKeyExchange = nil
 		contact.pandaShutdownChan = nil
-		logger.Printf(logger.WARN, "Key exchange with %s failed: %s\n", contact.name, update.err)
+		c.log("Key exchange with %s failed: %s", contact.name, update.err)
 	case update.serialised != nil:
 		if bytes.Equal(contact.pandaKeyExchange, update.serialised) {
 			return
@@ -144,9 +143,9 @@ func (c *Client) processPANDAUpdate(update PandaUpdate) {
 		if err := contact.processKeyExchange(update.result); err != nil {
 			contact.pandaResult = err.Error()
 			update.err = err
-			logger.Printf(logger.WARN, "Key exchange with %s failed: %s\n", contact.name, err)
+			c.log("Key exchange with %s failed: %s", contact.name, err)
 		} else {
-			logger.Printf(logger.INFO, "Key exchange with %s complete\n", contact.name)
+			c.log("Key exchange with %s complete", contact.name)
 			contact.isPending = false
 		}
 	}
