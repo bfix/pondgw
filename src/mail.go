@@ -26,18 +26,15 @@ import (
 	"bufio"
 	"bytes"
 	"code.google.com/p/go.crypto/openpgp"
-	"code.google.com/p/go.crypto/openpgp/armor"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
+	"github.com/bfix/gospel/crypto"
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
 	"io"
-	"io/ioutil"
 	mrand "math/rand"
-	"mime/multipart"
 	"net/http"
-	"net/mail"
 	"net/textproto"
 	"os"
 	"regexp"
@@ -50,15 +47,10 @@ import (
 // Module-local/global constants and variables.
 
 const (
-	ct_MP_MIX = "multipart/mixed;"
-	ct_MP_ENC = "multipart/encrypted;"
-
-	mode_PLAIN = iota
-	mode_SIGN_ENC
-
 	MAIL_CMD_QUIT = iota
 
-	mailAddrRE = "^[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*" +
+	mailChar   = "[a-z0-9!#$%&'*/=?^_`{|}~-]"
+	mailAddrRE = "^" + mailChar + "+(?:\\." + mailChar + "+)*(\\+(?P<sub>" + mailChar + "+)*)?" +
 		"@(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.?)+(?P<tld>[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)?$"
 )
 
@@ -71,16 +63,6 @@ var (
 // Types
 
 type MailMessage []string
-
-//---------------------------------------------------------------------
-/*
- * Result type for parsing mail messages
- */
-type MailContent struct {
-	mode int    // message type (mode_XXX)
-	body string // message body
-	key  []byte // attached key (register) or signing key (else)
-}
 
 ///////////////////////////////////////////////////////////////////////
 /*
@@ -101,7 +83,7 @@ func InitMailModule() error {
 		return errors.New("Invalid private key")
 	}
 	g.identity = keyring[0]
-	g.pubkey, err = GetArmoredPublicKey(g.identity)
+	g.pubkey, err = crypto.GetArmoredPublicKey(g.identity)
 	if err != nil {
 		return err
 	}
@@ -167,11 +149,15 @@ func PollMailServer(ch chan<- MailMessage, ctrl <-chan int) {
 			sess, err := network.POP3Connect(g.config.Email.POP3, g.config.Proxy)
 			if err != nil {
 				logger.Println(logger.ERROR, err.Error())
+				continue
 			}
 			logger.Println(logger.INFO, "Listing unread messages")
 			idList, err := sess.ListUnread()
 			if err != nil {
 				logger.Println(logger.ERROR, err.Error())
+				logger.Println(logger.INFO, "Disconnecting from server")
+				sess.Close()
+				continue
 			}
 			logger.Printf(logger.INFO, "%d unread message(s) found\n", len(idList))
 			for _, id := range idList {
@@ -205,201 +191,55 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 	for _, s := range msg {
 		buf.WriteString(s + "\n")
 	}
-	m, err := mail.ReadMessage(buf)
+
+	getInfo := func(key int, data string) interface{} {
+		switch key {
+		case network.INFO_SENDER:
+			data, err := GetMailUserData(data)
+			if err != nil {
+				return nil
+			}
+			keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewBuffer(data.PubKey))
+			if err != nil {
+				return nil
+			}
+			return keyring[0]
+		}
+		return nil
+	}
+	content, err := network.ParseMailMessage(buf, getInfo)
 	if err != nil {
 		return err
 	}
-	addr, err := mail.ParseAddress(m.Header.Get("From"))
-	if err != nil {
-		return err
-	}
-	logger.Println(logger.DBG_HIGH, "Handle incoming message...")
-	ct := m.Header.Get("Content-Type")
-	var content *MailContent = nil
-	if strings.HasPrefix(ct, ct_MP_MIX) {
-		content, err = ParsePlain(ct, m.Body)
-		if err != nil {
-			return err
-		}
-	} else if strings.HasPrefix(ct, ct_MP_ENC) {
-		content, err = ParseSecured(ct, addr.Address, m.Body)
-		if err != nil {
-			return err
-		}
-	}
-	body := strings.Split(content.body, "\n")
-	if content.mode == mode_PLAIN {
+	body := strings.Split(content.Body, "\n")
+	if content.Mode == network.MODE_PLAIN {
 		if strings.HasPrefix(body[0], "register") {
-			return ValidateMailUser(addr.Address, content.key)
+			return ValidateMailUser(content.From, content.Key)
 		}
-		logger.Printf(logger.INFO, "Dropping unencrypted message from '%s'\n", addr.Address)
-	} else if content.mode == mode_SIGN_ENC {
+		if sub := GetSubAddress(content.From); len(sub) > 0 {
+			logger.Printf(logger.INFO, "Received message to sub-address %s\n", sub)
+			rcpt, err := g.idEngine.GetPeerId(sub)
+			if err != nil {
+				return err
+			}
+			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt.String())
+			outMsg := "From: " + content.From + "\n" + content.Body
+			return SendPondMessage(rcpt.String(), outMsg)
+		}
+		logger.Printf(logger.INFO, "Dropping unencrypted message from '%s'\n", content.From)
+	} else if content.Mode == network.MODE_SIGN_ENC {
 		switch {
-		case strings.HasPrefix(body[0], "register"):
-			return ValidateMailUser(addr.Address, content.key)
 		case strings.HasPrefix(body[0], "To:"):
 			rcpt := strings.TrimSpace(body[0][3:])
-			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", addr.Address, rcpt)
-			outMsg := "From: " + addr.Address + "\n" + content.body
+			logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt)
+			outMsg := "From: " + content.From + "\n" + content.Body
 			return SendPondMessage(rcpt, outMsg)
 		}
-		logger.Printf(logger.INFO, "Dropping signed/encrypted message from '%s'\n", addr.Address)
+		logger.Printf(logger.INFO, "Dropping signed/encrypted message from '%s'\n", content.From)
+	} else if content.Mode == network.MODE_SIGN {
+	} else if content.Mode == network.MODE_ENC {
 	}
 	return nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Parse plain text message.
- * @param ct string - content type string
- * @param body io.Reader - content reader
- * @return *MailContent - parse result
- * @return error - error instance or nil
- */
-func ParsePlain(ct string, body io.Reader) (*MailContent, error) {
-	mc := new(MailContent)
-	mc.mode = mode_PLAIN
-	boundary := ExtractValue(ct, "boundary")
-	rdr := multipart.NewReader(body, boundary)
-	for {
-		if part, err := rdr.NextPart(); err == nil {
-			ct = part.Header.Get("Content-Type")
-			switch {
-			case strings.HasPrefix(ct, "text/plain;"):
-				data, err := ioutil.ReadAll(part)
-				if err != nil {
-					return nil, err
-				}
-				mc.body = string(data)
-			case strings.HasPrefix(ct, "application/pgp-keys;"):
-				mc.key, err = ioutil.ReadAll(part)
-				if err != nil {
-					return nil, err
-				}
-			default:
-				return nil, errors.New("Unhandled MIME part: " + ct)
-			}
-		} else if err == io.EOF {
-			break
-		} else {
-			return nil, err
-		}
-	}
-	return mc, nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Parse encrypted and signed message.
- * @param ct string - content type string
- * @param addr string - sender address
- * @param body io.Reader - content reader
- * @return *MailContent - parse result
- * @return error - error instance or nil
- */
-func ParseSecured(ct, addr string, body io.Reader) (*MailContent, error) {
-	mc := new(MailContent)
-	mc.mode = mode_SIGN_ENC
-	boundary := ExtractValue(ct, "boundary")
-	rdr := multipart.NewReader(body, boundary)
-	for {
-		if part, err := rdr.NextPart(); err == nil {
-			ct = part.Header.Get("Content-Type")
-			switch {
-			case strings.HasPrefix(ct, "application/pgp-encrypted"):
-				buf, err := ioutil.ReadAll(part)
-				if err != nil {
-					return nil, err
-				}
-				logger.Printf(logger.DBG, "Content: '%s'\n", strings.TrimSpace(string(buf)))
-				continue
-			case strings.HasPrefix(ct, "application/octet-stream;"):
-				rdr, err := armor.Decode(part)
-				if err != nil {
-					return nil, err
-				}
-				prompt := func(keys []openpgp.Key, symmetric bool) ([]byte, error) {
-					priv := keys[0].PrivateKey
-					if priv.Encrypted {
-						priv.Decrypt([]byte(g.config.Email.Passphrase))
-					}
-					buf := new(bytes.Buffer)
-					priv.Serialize(buf)
-					return buf.Bytes(), nil
-				}
-				md, err := openpgp.ReadMessage(rdr.Body, openpgp.EntityList{g.identity}, prompt, nil)
-				if err != nil {
-					return nil, err
-				}
-				if md.IsSigned {
-					data, err := GetMailUserData(addr)
-					if err != nil {
-						return nil, err
-					}
-					keyring, err := openpgp.ReadArmoredKeyRing(bytes.NewBuffer(data.PubKey))
-					if err != nil {
-						return nil, err
-					}
-					md.SignedBy = GetKeyFromIdentity(keyring[0], keySIGN)
-					md.SignedByKeyId = md.SignedBy.PublicKey.KeyId
-					mc.key, err = GetArmoredPublicKey(keyring[0])
-					if err != nil {
-						return nil, err
-					}
-					content, err := ioutil.ReadAll(md.UnverifiedBody)
-					if err != nil {
-						return nil, err
-					}
-					if md.SignatureError != nil {
-						return nil, md.SignatureError
-					}
-					logger.Println(logger.INFO, "Signature verified OK")
-
-					m, err := mail.ReadMessage(bytes.NewBuffer(content))
-					if err != nil {
-						return nil, err
-					}
-					ct = m.Header.Get("Content-Type")
-					mc2, err := ParsePlain(ct, m.Body)
-					if err != nil {
-						return nil, err
-					}
-					mc.body = mc2.body
-				} else {
-					logger.Printf(logger.INFO, "Dropping unsigned message from '%s'\n", addr)
-					return nil, nil
-				}
-			default:
-				return nil, errors.New("Unhandled MIME part: " + ct)
-			}
-		} else if err == io.EOF {
-			break
-		} else {
-			return nil, err
-		}
-	}
-	return mc, nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Extract value from string ('... key="value" ...')
- * @param s string - input string
- * @param key string - name of key
- * @param string - value string (or empty)
- */
-func ExtractValue(s, key string) string {
-	idx := strings.Index(s, key)
-	skip := idx + len(key) + 2
-	if idx < 0 || len(s) < skip {
-		return ""
-	}
-	s = s[skip:]
-	idx = strings.IndexRune(s, '"')
-	if idx < 0 {
-		return ""
-	}
-	return s[:idx]
 }
 
 //---------------------------------------------------------------------
@@ -504,4 +344,24 @@ func IsValidEmailAddress(addr string) bool {
 		}
 	}
 	return false
+}
+
+//---------------------------------------------------------------------
+/*
+ * Get first sub-address from an email address (if any)
+ * @param addr string - email address to be checked
+ * @return string - sub-address (or empty)
+ */
+func GetSubAddress(addr string) string {
+	if !emailRegexp.MatchString(addr) {
+		return ""
+	}
+	names := emailRegexp.SubexpNames()
+	values := emailRegexp.FindAllStringSubmatch(addr, -1)
+	for i, n := range names {
+		if n == "sub" {
+			return values[0][i]
+		}
+	}
+	return ""
 }

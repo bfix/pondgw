@@ -23,6 +23,7 @@ package main
 // Import external declarations.
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -60,6 +61,10 @@ func TestEMailValidator(t *testing.T) {
 		}
 		if rc && d[0] == "-" {
 			t.Error("Test for address '" + d[1] + "' should fail, but didn't.")
+		}
+		sub := GetSubAddress(d[1])
+		if len(sub) > 0 {
+			fmt.Printf("SubAddress '%s' from '%s'\n", sub, d[1])
 		}
 	}
 }
