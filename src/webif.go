@@ -311,7 +311,7 @@ func introHandler(resp http.ResponseWriter, req *http.Request) {
 		Title: "Introduction",
 		Root:  "",
 		data: &struct {
-			Hidden string
+			Hidden    string
 			TokenAddr string
 			Stat      *Statistics
 		}{

@@ -1,4 +1,4 @@
-<p><span class="emph">The security-aware user can also reach this website at {{.Hidden}}</span></p>
+<p>The security-aware user can also reach this website at <span class="emph">{{.Hidden}}</span></p>
 
 <h1>What is this?</h1>
 <p>This is a <span class="emph">highly experimental version (&alpha; stage)</span>
