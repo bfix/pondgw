@@ -73,14 +73,18 @@ type TemplateConfig struct {
 type DatabaseConfig struct {
 	Connect          string `json:"connect"` // database connection string
 	InsertMailUser   string `json:"insertMailUser"`
+	CountMailUser    string `json:"countMailUser"`
 	SelectMailUser   string `json:"selectMailUser"`
 	SelectMailToken  string `json:"selectMailToken"`
 	DropMailToken    string `json:"dropMailToken"`
 	DropMailUser     string `json:"dropMailUser"`
 	UpdateMailStatus string `json:"updateMailStatus"`
 	InsertPondUser   string `json:"insertPondUser"`
+	CountPondUser    string `json:"countPondUser"`
 	SelectPondUser   string `json:"selectPondUser"`
 	UpdatePondStatus string `json:"updatePondStatus"`
+	SelectStats      string `json:"selectStats"`
+	UpdateStats      string `json:"updateStats"`
 }
 
 //---------------------------------------------------------------------
@@ -93,9 +97,12 @@ type WebConfig struct {
 	Docs        string `json:"docs"`
 	Key         string `json:"key"`
 	Cert        string `json:"cert"`
-	FormPage    string `json:"formPage"`
+	HtmlPage    string `json:"htmlPage"`
+	IntroPage   string `json:"introPage"`
+	RegPage     string `json:"regPage"`
 	UsagePage   string `json:"usagePage"`
 	ErrorPage   string `json:"errorPage"`
+	ToolsPage   string `json:"toolsPage"`
 	CaptchaFail string `json:"captchaFail"`
 }
 
@@ -110,11 +117,21 @@ type ControlConfig struct {
 
 //---------------------------------------------------------------------
 /*
+ * IdEngine-related configuration settings
+ */
+type IdEngineConfig struct {
+	Instance string `json:"instance"`
+	PubN     string `json:"pubN"`
+	PubG     string `json:"pubG"`
+}
+
+//---------------------------------------------------------------------
+/*
  * Combined configuration data
  */
 type Config struct {
 	Control  *ControlConfig  `json:"control"`
-	IdEngine string          `json:"idEngine"`
+	IdEngine *IdEngineConfig `json:"idEngine"`
 	Database *DatabaseConfig `json:"database"`
 	Web      *WebConfig      `json:"webif"`
 	Proxy    string          `json:"proxy"` // SOCKS5 URL

@@ -110,7 +110,7 @@ func main() {
 
 	// initialize modules (and global parameters)
 	g.prng = rand.Reader
-	data, err := util.Base58Decode(g.config.IdEngine)
+	data, err := util.Base58Decode(g.config.IdEngine.Instance)
 	if err == nil {
 		if g.idEngine, err = RestoreIdEngine(data); err == nil {
 			if err = InitPondModule(); err == nil {

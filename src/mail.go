@@ -212,7 +212,7 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 		return err
 	}
 	body := strings.Split(content.Body, "\n")
-	
+
 	if strings.HasPrefix(body[0], "register") {
 		return ValidateMailUser(content.From, content.Key)
 	}
@@ -287,7 +287,9 @@ func SendNotificationEmail(toAddr string, key []byte, tplName string, data inter
 
 //---------------------------------------------------------------------
 /*
- * Send a mail to user.
+ * Send a mail to user:
+ * If the user is registered, the email wll be encrpted to the public
+ * key of the recipient.
  * @param toAddr string - mail address of user
  * @param body []byte - mail body
  */
@@ -297,15 +299,16 @@ func SendEmailMessage(toAddr string, body []byte) error {
 		logger.Println(logger.ERROR, err.Error())
 		return err
 	}
+	var msg []byte
 	userData, err := GetMailUserData(toAddr)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
-	}
-	msg, err := network.EncryptMailMessage(userData.PubKey, buf)
-	if err != nil {
-		logger.Println(logger.ERROR, err.Error())
-		return err
+	if err == nil {
+		msg, err = network.EncryptMailMessage(userData.PubKey, buf)
+		if err != nil {
+			logger.Println(logger.ERROR, err.Error())
+			msg = buf
+		}
+	} else {
+		msg = buf
 	}
 	if err = network.SendMailMessage(g.config.Email.SMTP, g.config.Proxy, g.config.Email.Address, toAddr, msg); err != nil {
 		logger.Println(logger.ERROR, err.Error())

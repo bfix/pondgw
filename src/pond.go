@@ -78,9 +78,12 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 					if strings.HasPrefix(body[0], "To:") {
 						rcpt := strings.TrimSpace(body[0][3:])
 						logger.Printf(logger.INFO, "Forwarding message from '%s' to '%s'\n", n.Info, rcpt)
-						outMsg := append([]byte("From: "+n.Info+"\n"), msg.Message.Body...)
-						if err := SendEmailMessage(rcpt, outMsg); err != nil {
-							logger.Printf(logger.INFO, "Faild to forward message to '%s'\n", rcpt)
+						if !strings.HasPrefix(body[1], "From:") {
+							logger.Printf(logger.INFO, "No source specified -- skipping message from '%s'\n", n.Info)
+							continue
+						}
+						if err := SendEmailMessage(rcpt, msg.Message.Body); err != nil {
+							logger.Printf(logger.INFO, "Failed to forward message to '%s'\n", rcpt)
 						}
 
 					} else {
