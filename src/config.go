@@ -94,6 +94,7 @@ type DatabaseConfig struct {
 type WebConfig struct {
 	Listen      string `json:"listen"`
 	Host        string `json:"host"`
+	Hidden      string `json:"hidden"`
 	Docs        string `json:"docs"`
 	Key         string `json:"key"`
 	Cert        string `json:"cert"`

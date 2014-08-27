@@ -311,9 +311,11 @@ func introHandler(resp http.ResponseWriter, req *http.Request) {
 		Title: "Introduction",
 		Root:  "",
 		data: &struct {
+			Hidden string
 			TokenAddr string
 			Stat      *Statistics
 		}{
+			Hidden:    g.config.Web.Hidden,
 			TokenAddr: p[0] + "+&lt;token&gt;@" + p[1],
 			Stat:      nil,
 		},

@@ -13,6 +13,7 @@
 	"webif": {
 		"listen": "127.0.0.1:10443",
 		"host": "https://127.0.0.1:10443",
+		"hidden": "https://3myvanity6gpmu6c.onion",
 		"docs": "./www",
 		"key": "webif.key",
 		"cert": "cert.pem",

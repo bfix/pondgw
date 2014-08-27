@@ -34,6 +34,7 @@ of email addresses at her/his disposal that are generated from the
 <span class="emph">PeerId</span> by the Pond user. So you can give away a separate
 email address to every email user or service you want to exchange messages with.</p>
 
+<a name="token"/>
 <p>Each of your email addresses has the form:</p>
 
 <p class="code">{{.User}}+<span class="hl">&lt;Token&gt;</span>@{{.Domain}}</p>

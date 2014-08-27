@@ -1,3 +1,5 @@
+<p><span class="emph">The security-aware user can also reach this website at {{.Hidden}}</span></p>
+
 <h1>What is this?</h1>
 <p>This is a <span class="emph">highly experimental version (&alpha; stage)</span>
 of a message gateway between Pond and EMail accounts. It is <i>Free/Libre Open
@@ -9,7 +11,7 @@ target="_blank">Github repository</a>.</p>
 a new, highly secure, asynchronous messaging application that does not create
 traffic profiles between peers that can be exploited by adversaries -
 even if these adversaries are able to monitor network traffic on a global
-scale. The messages are send <a href="https://en.wikipedia.org/wiki/Off-the-Record_Messaging"
+scale. The messages are sent <a href="https://en.wikipedia.org/wiki/Off-the-Record_Messaging"
 target="_blank">"off-the-record"</a>. We consider it to be the <i>Next
 Generation EMail Protocol</i>.</p>
 
@@ -33,7 +35,7 @@ your email client for certain processes:</p>
 </ul>
 
 <p>Every Pond user on the gateway has an unlimited number of email addresses at
-her/his disposal (well, not really unlimited, but 2<sup>64</sup> different addresses
+her/his disposal (well, not really unlimited, but 2<sup>128</sup> different addresses
 sounds like a lot). So it is possible to use email communication with many peers
 without giving away any hints of the associated Pond identity. This feature is
 achieved by user-derived tokens from peer identifiers: you can give a unique token
@@ -41,7 +43,7 @@ to each email end-point you want to connect to; no two tokens look the same and 
 is now way to derive the peer identifier from them. The email address is than
 simply <b>{{.TokenAddr}}</b>, where <b>&lt;token&gt;</b> is replaced by the token
 the user has generated. More on generating tokens can be found
-<a href="token.html">here</a>.</p>  
+<a href="usage#token">here</a>.</p>  
 
 <h1>Is it secure to use the gateway?</h1>
 <p>Of course it must be noticed that messages passing through the gateway

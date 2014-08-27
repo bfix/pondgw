@@ -54,11 +54,11 @@ import (
 // Package-local constants and variables
 
 const (
-	bitLength = 128 // length of Paillier key (and token)
+	bitLength = 128 // length of Paillier key
 )
 
 var (
-	maxPeerId = new(big.Int).Lsh(big.NewInt(1), bitLength/2)
+	maxPeerId = new(big.Int).Lsh(big.NewInt(1), 64)
 )
 
 ///////////////////////////////////////////////////////////////////////

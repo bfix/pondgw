@@ -216,27 +216,27 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 	if strings.HasPrefix(body[0], "register") {
 		return ValidateMailUser(content.From, content.Key)
 	}
-	if strings.HasPrefix(body[0], "To:") {
-		rcpt := strings.TrimSpace(body[0][3:])
-		logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt)
-		outMsg := "From: " + content.From + "\n\n" + content.Body
-		return SendPondMessage(rcpt, outMsg)
-	}
+
+	toAddr := ""
 	if sub := GetSubAddress(content.To); len(sub) > 0 {
 		logger.Printf(logger.INFO, "Received message to sub-address %s\n", sub)
-		rcpt, err := g.idEngine.GetPeerId(sub)
-		if err != nil {
-			return err
-		}
-		logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt.String())
-		outMsg := "From: " + content.From +
-			"\nTo: " + content.To +
-			"\nSubject: " + content.Subject +
-			"\n\n" + content.Body
-		return SendPondMessage(rcpt.String(), outMsg)
+		toAddr = sub
+	} else if strings.HasPrefix(body[0], "To:") {
+		toAddr = strings.TrimSpace(body[0][3:])
+	} else {
+		logger.Printf(logger.INFO, "Dropping message '%v'\n", content)
+		return nil
 	}
-	logger.Printf(logger.INFO, "Dropping message '%v'\n", content)
-	return nil
+	rcpt, err := g.idEngine.GetPeerId(toAddr)
+	if err != nil {
+		return err
+	}
+	logger.Printf(logger.INFO, "Forwarding mail message from '%s' to '%s'\n", content.From, rcpt.String())
+	outMsg := "From: " + content.From +
+		"\nTo: " + content.To +
+		"\nSubject: " + content.Subject +
+		"\n\n" + content.Body
+	return SendPondMessage(rcpt.String(), outMsg)
 }
 
 //---------------------------------------------------------------------
