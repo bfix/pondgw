@@ -1,0 +1,11 @@
+<h1 class="center">Pond/EMail Gateway &nbsp;&mdash;&nbsp; Error page</h1>
+
+<p>Your request failed for the following reason:</p>
+
+<ul>		
+{{range .Msgs}}
+	<li><p class="error">{{print .}}</p></li>
+{{end}}
+</ul>
+         
+<p>Sometimes errors and problems are temporary, so you may try your action again at a later time.</p>

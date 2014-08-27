@@ -1,0 +1,63 @@
+<h1>What is this?</h1>
+<p>This is a <span class="emph">highly experimental version (&alpha; stage)</span>
+of a message gateway between Pond and EMail accounts. It is <i>Free/Libre Open
+Source Software</i> and can be downloaded from a <a href="https://github.com/bfix/pondgw"
+target="_blank">Github repository</a>.</p>
+
+<h1>What is Pond?</h1>
+<p><a href="https://pond.imperialviolet.org/" target="_blank">Pond</a> is
+a new, highly secure, asynchronous messaging application that does not create
+traffic profiles between peers that can be exploited by adversaries -
+even if these adversaries are able to monitor network traffic on a global
+scale. The messages are send <a href="https://en.wikipedia.org/wiki/Off-the-Record_Messaging"
+target="_blank">"off-the-record"</a>. We consider it to be the <i>Next
+Generation EMail Protocol</i>.</p>
+
+<h1>What is the use of a gateway?</h1>
+<p>There are many use cases where a message exchange between a Pond user
+and means of email-based communication is useful &nbsp;&mdash;&nbsp; especially
+if you try to use Pond as much as possible and want to avoid to revert to
+your email client for certain processes:</p>
+
+<ul>
+	<li><p><b>EMail-based registrations</b><br/>
+	Most services on the Internet require you to provide an email address for
+	registration and require you to click on links in confirmation emails.</p></li>
+	<li><p><b>Mailing lists</b><br/>
+	Sometimes people want to join mailing lists and have to provide an email
+	address to participate and receive emails from the list.</li>
+	<li><p><b>Message exchange with die-hard email users</b><br/>
+	You can use the gateway to keep in contact with all your peers that will
+	not migrate to Pond &nbsp;&mdash;&nbsp; even if it is the superior form
+	for asynchronous message exchange.</p></li>				
+</ul>
+
+<p>Every Pond user on the gateway has an unlimited number of email addresses at
+her/his disposal (well, not really unlimited, but 2<sup>64</sup> different addresses
+sounds like a lot). So it is possible to use email communication with many peers
+without giving away any hints of the associated Pond identity. This feature is
+achieved by user-derived tokens from peer identifiers: you can give a unique token
+to each email end-point you want to connect to; no two tokens look the same and there
+is now way to derive the peer identifier from them. The email address is than
+simply <b>{{.TokenAddr}}</b>, where <b>&lt;token&gt;</b> is replaced by the token
+the user has generated. More on generating tokens can be found
+<a href="token.html">here</a>.</p>  
+
+<h1>Is it secure to use the gateway?</h1>
+<p>Of course it must be noticed that messages passing through the gateway
+do not have the same high level of security and privacy as messages
+exchanged between Pond users directly - they only have "EMail level
+security". The communication between the gateway and the EMail account
+is visible and therefore certainly subject to surveillance. The Pond side
+of the exchange is better off and keeps most of the advantages - one
+more reason to change to Pond as soon as possible...</p>
+
+<p>You should also encrypt messages going through the gateway with an
+additional layer to prevent the gateway to see the message content. You
+need to negotiate and set up such encryption process with your peer
+before you start exchanging messages.
+
+<h1>How can I use the gateway?</h1>
+<p>So if your are a Pond or EMail user and want to exchange messages
+across borders, please <a href="/register">register</a>.</p>
+

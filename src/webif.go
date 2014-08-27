@@ -23,41 +23,79 @@ package main
 // Import external declarations.
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"github.com/agl/pond/panda"
 	"github.com/bfix/gospel/crypto"
 	"github.com/bfix/gospel/logger"
 	"github.com/dchest/captcha"
-	"html/template"
 	"io/ioutil"
 	"net/http"
 	"strings"
+	"text/template"
 )
 
 ///////////////////////////////////////////////////////////////////////
 /*
- * Render a HTML web page from a template.
+ * Generic HTML page data
+ */
+type PageData struct {
+	Title   string
+	Root    string
+	Content string
+	Sidebar string
+	data    interface{}
+}
+
+///////////////////////////////////////////////////////////////////////
+/*
+ * Render a HTML web page from a template:
+ * The template only contains the body of the page, the wrapper HTML
+ * code around it is in a separate template.
  * @param resp http.ResponseWriter - response buffer
  * @param tplName string - name of template file
- * @param data interface{} - template parameters
+ * @param tplVars *PageData - template parameters
  * @return error - error instancve or nil
  */
-func RenderPage(resp http.ResponseWriter, tplName string, data interface{}) error {
+func RenderPage(resp http.ResponseWriter, tplName string, tplVars *PageData) error {
+	base := len(tplName) == 0
+	if base {
+		tplName = g.config.Web.HtmlPage
+	}
 	tpl, err := template.ParseFiles(tplName)
 	if err != nil {
 		msg := fmt.Sprintf("Failed to read HTML template '%s': %s\n", tplName, err.Error())
 		logger.Printf(logger.ERROR, msg)
+		if !base {
+			tplVars.Content = msg
+			return RenderPage(resp, "", tplVars)
+		}
 		resp.Write([]byte(msg))
 		return err
 	}
-	if err = tpl.Execute(resp, data); err != nil {
+	buf := new(bytes.Buffer)
+	if base {
+		err = tpl.Execute(buf, tplVars)
+	} else {
+		err = tpl.Execute(buf, tplVars.data)
+	}
+	if err != nil {
 		msg := fmt.Sprintf("Failed to execute HTML template '%s': %s\n", tplName, err.Error())
 		logger.Printf(logger.ERROR, msg)
+		if !base {
+			tplVars.Content = msg
+			return RenderPage(resp, "", tplVars)
+		}
 		resp.Write([]byte(msg))
 		return err
 	}
-	return nil
+	if !base {
+		tplVars.Content = string(buf.Bytes())
+		return RenderPage(resp, "", tplVars)
+	}
+	_, err = resp.Write(buf.Bytes())
+	return err
 }
 
 //---------------------------------------------------------------------
@@ -79,14 +117,18 @@ func ErrorPage(resp http.ResponseWriter, root, err string) {
  * @param err string - error message
  */
 func ErrorsPage(resp http.ResponseWriter, root string, errs []string) {
-	param := struct {
-		Root string
-		Msgs []string
-	}{
-		Root: root,
-		Msgs: errs,
+	param := &PageData{
+		Title: "Error",
+		Root:  root,
+		data: &struct {
+			Root string
+			Msgs []string
+		}{
+			Root: root,
+			Msgs: errs,
+		},
 	}
-	RenderPage(resp, g.config.Web.ErrorPage, &param)
+	RenderPage(resp, g.config.Web.ErrorPage, param)
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -129,12 +171,16 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 			msgs = append(msgs, "(Temporarily) failed to register peer %s: "+err.Error())
 			return false
 		}
-		param := struct {
-			PeerId string
-		}{
-			PeerId: id.String(),
+		param := &PageData{
+			Title: "Successful Pond registration",
+			Root:  "../",
+			data: &struct {
+				PeerId string
+			}{
+				PeerId: id.String(),
+			},
 		}
-		RenderPage(resp, g.config.Tpls.PondRegSuccess, &param)
+		RenderPage(resp, g.config.Tpls.PondRegSuccess, param)
 		return true
 	}
 
@@ -163,12 +209,16 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 				msgs = append(msgs, msg)
 				return false
 			}
-			param := struct {
-				Addr string
-			}{
-				Addr: addr,
+			param := &PageData{
+				Title: "Successful EMail registration",
+				Root:  "../",
+				data: &struct {
+					Addr string
+				}{
+					Addr: addr,
+				},
 			}
-			RenderPage(resp, g.config.Tpls.MailPending, &param)
+			RenderPage(resp, g.config.Tpls.MailPending, param)
 			return true
 		}
 		return false
@@ -176,12 +226,16 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 
 	if req.Method == "POST" {
 		if !captcha.VerifyString(req.FormValue("captchaId"), req.FormValue("captchaSolution")) {
-			param := struct {
-				Root string
-			}{
-				Root: g.config.Web.Host,
+			param := &PageData{
+				Title: "CAPTCHA failure",
+				Root:  "../",
+				data: &struct {
+					Root string
+				}{
+					Root: g.config.Web.Host,
+				},
 			}
-			RenderPage(resp, g.config.Web.CaptchaFail, &param)
+			RenderPage(resp, g.config.Web.CaptchaFail, param)
 			return
 		}
 		if req.RequestURI == "/register/pond" {
@@ -201,7 +255,7 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 		logger.Println(logger.INFO, "[webif] Unhandled request: "+req.URL.String())
 		msgs = append(msgs, "Unhandled request")
 	}
-	ErrorsPage(resp, "..", msgs)
+	ErrorsPage(resp, "../", msgs)
 }
 
 //---------------------------------------------------------------------
@@ -211,12 +265,16 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
  * @param req *http.Request - request data
  */
 func formHandler(resp http.ResponseWriter, req *http.Request) {
-	data := struct {
-		CaptchaId string
-	}{
-		captcha.New(),
+	param := &PageData{
+		Title: "Registration",
+		Root:  "",
+		data: &struct {
+			CaptchaId string
+		}{
+			CaptchaId: captcha.New(),
+		},
 	}
-	RenderPage(resp, g.config.Web.FormPage, &data)
+	RenderPage(resp, g.config.Web.RegPage, param)
 }
 
 //---------------------------------------------------------------------
@@ -226,12 +284,57 @@ func formHandler(resp http.ResponseWriter, req *http.Request) {
  * @param req *http.Request - request data
  */
 func usageHandler(resp http.ResponseWriter, req *http.Request) {
-	data := struct {
-		GatewayEmail string
-	}{
-		GatewayEmail: g.config.Email.Address,
+	addr := strings.Split(g.config.Email.Address, "@")
+	param := &PageData{
+		Title: "Tutorial",
+		Root:  "",
+		data: &struct {
+			User   string
+			Domain string
+		}{
+			User:   addr[0],
+			Domain: addr[1],
+		},
 	}
-	RenderPage(resp, g.config.Web.UsagePage, &data)
+	RenderPage(resp, g.config.Web.UsagePage, param)
+}
+
+//---------------------------------------------------------------------
+/*
+ * Assemble intro page.
+ * @param resp http.ResponseWriter - response buffer
+ * @param req *http.Request - request data
+ */
+func introHandler(resp http.ResponseWriter, req *http.Request) {
+	p := strings.Split(g.config.Email.Address, "@")
+	param := &PageData{
+		Title: "Introduction",
+		Root:  "",
+		data: &struct {
+			TokenAddr string
+			Stat      *Statistics
+		}{
+			TokenAddr: p[0] + "+&lt;token&gt;@" + p[1],
+			Stat:      nil,
+		},
+	}
+	RenderPage(resp, g.config.Web.IntroPage, param)
+}
+
+//---------------------------------------------------------------------
+/*
+ * Assemble the tools page.
+ * @param resp http.ResponseWriter - response buffer
+ * @param req *http.Request - request data
+ */
+func toolsHandler(resp http.ResponseWriter, req *http.Request) {
+	param := &PageData{
+		Title: "Helpful tools",
+		Root:  "",
+		data: &struct {
+		}{},
+	}
+	RenderPage(resp, g.config.Web.ToolsPage, param)
 }
 
 //---------------------------------------------------------------------
@@ -268,12 +371,16 @@ func confirmHandler(resp http.ResponseWriter, req *http.Request) {
 		ErrorPage(resp, "..", "Failed to update user database -- try again at a later time")
 		return
 	}
-	data := struct {
-		Addr string
-	}{
-		Addr: user.Address,
+	param := &PageData{
+		Title: "Confirm registration",
+		Root:  "",
+		data: &struct {
+			Addr string
+		}{
+			Addr: user.Address,
+		},
 	}
-	RenderPage(resp, g.config.Tpls.MailConfirm, &data)
+	RenderPage(resp, g.config.Tpls.MailConfirm, param)
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -287,6 +394,8 @@ func httpsServe() {
 		return
 	}
 	http.Handle("/", http.FileServer(http.Dir(g.config.Web.Docs)))
+	http.HandleFunc("/intro", introHandler)
+	http.HandleFunc("/tools", toolsHandler)
 	http.HandleFunc("/usage", usageHandler)
 	http.HandleFunc("/register", formHandler)
 	http.HandleFunc("/register/", regHandler)

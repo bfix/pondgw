@@ -4,7 +4,11 @@
 		"allowed": "127.0.0.1"
 	},
 	
-	"idEngine": "MJFs1oYBVQiY8dW1bDoNWFrpxU2dVTdepNxi7Ps6b6DP7hmMMFB3q8sGJDSBQkuchWhsEBdcbpBme4m7AM1bFgHDwzh6pdu3PCcksEGDPa7ys3E2krmfxxSTk99RnvZ1Fm8JqfBXqXfM55iTj5d94YhyujU435xsUz2wj9JUSDqtTs77nRL39hq5P5XVCntJ8RBtTy8Rmietubnnz4qXCL7cw4WSFATQc7mMv6xBVuDayPd9rBUq3VaJPQv14Q4n23tME8r7koVMQ3zC3PyoWuj8J2PMBmFcx7hPx1h38dPFDjVkh2tULyRzhX1tL9kd5ecFT7vDwCFbpZJgpcNzVnn5g2MfE2T28BMT5pwbQR23tjrbYtp33zZwz",
+	"idEngine": {
+		"instance": "23Rtvuz1wqqbvo11YXeBnNfGhZ4YQqeSmXaSqGRhdF2HsitivqZntM5UHKb221zVeY2qfrXs2Qpk7uzoe8w9kW9kXEPxg7iXxjd42Gf5WBbi4NTDzHbQbsiudHzveLHHF8y7u4cxChUxASjBz9KnaPjKXguoFFCsp5aMB5scpxHcPtEFDaa2bVx3kgS1kSQhuyJGQNR8HUbQVDJ6F6XXEMEo8qr8ZxEgBhmEdrPQGH83hG5DT75Gx3qKpNQuiWPwUDSq4sqhjCB245AN9K74SrEPnz2GbBac2By7iseLERP1cw8hLpEFcnPYrW6LQr4do94BoERMVswuYrvmmrGeoRjAS21BdiukqSvukN9hoFXJ2zUofi5Cs2c",
+		"pubN": "307405146472784882100056993007603015469",
+		"pubG": "762633150822857655944039601633533681217797774791568659156847514658393937940"
+	},		
 
 	"webif": {
 		"listen": "127.0.0.1:10443",
@@ -12,9 +16,12 @@
 		"docs": "./www",
 		"key": "webif.key",
 		"cert": "cert.pem",
-		"formPage": "www/RegForm.htpl",
+		"htmlPage": "www/html.htpl",
+		"regPage": "www/register.htpl",
+		"introPage": "www/intro.htpl",
 		"usagePage": "www/usage.htpl",
-		"errorPage": "www/Error.htpl",
+		"errorPage": "www/error.htpl",
+		"toolsPage": "www/tools.htpl",
 		"captchaFail": "www/captcha/CaptchaFail.htpl"
 	},
 	
@@ -22,13 +29,17 @@
 		"connect": "pondgw:pondgw@/pondgw?charset=utf8",
 		"insertMailUser": "insert into email(addr,pubkey,status,token) values(?,?,?,?)",
 		"selectMailUser": "select * from email where addr=?",
+		"countMailUser": "select count(*) as count from email",
 		"selectMailToken": "select * from email where token=?",
 		"updateMailStatus": "update email set status=? where addr=?",
 		"dropMailToken": "update email set token='' where addr=?",
 		"dropMailUser": "delete from email where addr=?",
 		"insertPondUser": "insert into pond(peer,status) values(?,?)",
 		"selectPondUser": "select * from pond where peer=?",
-		"updatePondStatus": "update pond set status=? where peer=?"
+		"countPondUser": "select count(*) as count from pond",
+		"updatePondStatus": "update pond set status=? where peer=?",
+		"selectStats": "select name, val from stats",
+		"updateStats": "update stats set val=? where name=?"
 	},
 
 	"proxy": "socks5://127.0.0.1:9050",
