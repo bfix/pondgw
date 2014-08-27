@@ -19,7 +19,7 @@
  * Tokens are used by email contacts (either persons or bots/mailing
  * lists) to send messages to a Pond user; the email address of a
  * Pond user looks like "pondgw+<token>@hoi-polloi.org" where "<token>"
- * is the base58-encoded token (128 bit).
+ * is the base58-encoded token (2048 bit).
  *
  * (c) 2014 Bernd Fix   >Y<
  *
@@ -54,7 +54,7 @@ import (
 // Package-local constants and variables
 
 const (
-	bitLength = 128 // length of Paillier key
+	bitLength = 1024 // length of Paillier key
 )
 
 var (
