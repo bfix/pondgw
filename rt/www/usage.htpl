@@ -18,7 +18,7 @@ you would if you want to peer with other Pond users) and enter it into the input
 submit the form.</p>
 
 <p>If your registration succeeds (if your shared secret is valid for a PANDA key exchange),
-you will see a "success" page. This page will display a uniquw <span class="emph">PeerId</span>
+you will see a "success" page. This page will display a unique <span class="emph">PeerId</span>
 that is assigned to your Pond identity on the gateway. Write down this identifier and
 <span class="emph">keep it secret</span>.</p>
 
@@ -34,33 +34,13 @@ of email addresses at her/his disposal that are generated from the
 <span class="emph">PeerId</span> by the Pond user. So you can give away a separate
 email address to every email user or service you want to exchange messages with.</p>
 
-<a name="token"/>
-<p>Each of your email addresses has the form:</p>
+<a name="token"><p>Each of your email addresses has the form:</p></a>
 
 <p class="code">{{.User}}+<span class="hl">&lt;Token&gt;</span>@{{.Domain}}</p>
 
 <p>The <span class="emph">Token</span> that is part of your email address is derived
-from your <span class="emph">PeerId</span>. To generate a new token, you must download
-a small program called <a href="tools#tokenizer">tokenizer</a> and run it on your computer:
-
-<p class="code">$ ./tokenize -i <span class="hl">&lt;PeerId&gt;</span></p>
-
-<p>The output of the program is a new Token you can use in an email address.</p>
-
-<h3>2.1. Pond EMail address too long for sender</h3>
-
-<p>The length of a Pond email address may exceed the acceptable size for senders as the
-token alone is usually around some 350 characters. The IETF specs limits the local part (the
-part before the '@') to 64 characters, the domain part to 253 characters and the total
-length to 254 characters. If a email user is not able to send you an email with a very
-long local part, the email must be send to "{{.User}}@{{.Domain}}" and the first
-line of the mail body must read</p>
-
-<div class="msg">
-	<p>To: &lt;token&gt;</p>
-</div>
-
-<p>followed by the rest of the message.</p>
+from your <span class="emph">PeerId</span>. To generate new tokens, go to the
+<a href="/token">token generator</a> page.</p>
 
 <h2>3. Send a message to an email address</h2>
 

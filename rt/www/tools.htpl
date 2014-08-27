@@ -3,68 +3,8 @@
 
 <a name="pond"><h1 class="solid">Pond Users</h1></a>
 
-<h1>1. Tokenizer</h1>
-
-<p>The <span class="emph">Tokenizer</span> program is used to generate tokens from a
-<span class="emph">PeerId</span> to create receiving email addresses for Pond users.
-You can either download a ready-to-use program version or compile your own.</p>
-
-<h2>1.1. Download the tool for your platform:</h2>
-
-<table style="margin-left: 5em;" border="1" cellspacing="0" cellpadding="7px">
-	<tr>
-		<th valign="top">
-			<p>Operating System<p>
-		</th>
-		<th valign="top">
-			<p>Download link</p>
-		</th>
-	</tr>
-	<tr>
-		<td valign="top" align="center">
-			<img src="images/os_win.png"/>
-		</td>
-		<td valign="top">
-			<p><a href="files/tokenize_windows_386">Windows 32-bit</a></p>
-			<p><a href="files/tokenize_windows_amd64">Windows 64-bit</a></p>
-		</td>
-	</tr>
-	<tr>
-		<td valign="top" align="center">
-			<img src="images/os_mac.png"/>
-		</td>
-		<td valign="top">
-			<p><a href="files/tokenize_darwin_386">MacOS 32-bit</a></p>
-			<p><a href="files/tokenize_darwin_amd64">MacOS 64-bit</a></p>
-		</td>
-	</tr>
-	<tr>
-		<td valign="top" align="center">
-			<img src="images/os_linux.png"/>
-		</td>
-		<td valign="top">
-			<p><a href="files/tokenize_linux_386">Linux 32-bit</a></p>
-			<p><a href="files/tokenize_linux_amd64">Linux 64-bit</a></p>
-		</td>
-	</tr>
-</table>
-
-<p>If the program provided here for your platform does not work on your computer,
-you have to compile the application yourself.</p>
-
-<h2>1.2. Compile the program yourself</h2>
-
-<p>The program is (just like Pond or the gateway) written in a programming language called
-<a href="https://golang.org" target="_blank">Go</a>. To compile this tools you need to have
-a development environment for Go first. Go to the
-<a href="https://http://golang.org/doc/install" target="_blank">project website</a>
-to learn on how to do that.</p>
-
-<p>Download the <a href="files/tokenize.go" target="_blank">source code</a>
-for the tool and store it on your computer. To compile the program you issue the following command:</p>
-
-<p class="code">$ go build -o tokenize tokenize.go</p>
+<p><i>(There are currently no tools available)</i></p>
 
 <a name="email"><h1 class="solid">EMail Users</h1></a>
 
-<p><i>There are currently no tools available</i></p>
+<p><i>(There are currently no tools available)</i></p>

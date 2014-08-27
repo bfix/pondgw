@@ -1,14 +1,14 @@
 /*
  * PeerId/Token scheme:
  * --------------------
- * A PeerId is a 64-bit identifier that is assigne to a Pond identity
+ * A PeerId is a 64-bit identifier that is assigned to a Pond identity
  * during registration at the gateway. The Pond user should keep this
  * information private.
  *
- * The Pond user derives 128-bit Tokens from this PeerId; the Token
- * is the Paillier-encrypted PeerId (with a published public key). The
- * private Pailier key is only known to the gateway and is used to
- * "reconstruct" a PeerId from a given Token.
+ * 256-bit Tokens are derived from this PeerId; the Token is the
+ * Paillier-encrypted PeerId. Both keys (private and public Paillier
+ * keys) are kept secret and are only known to the gateway, which uses
+ * them to generate tokens and to decrypt them to PeerIds.
  *
  * The Paillier encryption yields different Tokens each time a PeerId
  * is encrypted; it therefore allows the Pond user to use the Tokens
@@ -19,7 +19,12 @@
  * Tokens are used by email contacts (either persons or bots/mailing
  * lists) to send messages to a Pond user; the email address of a
  * Pond user looks like "pondgw+<token>@hoi-polloi.org" where "<token>"
- * is the base58-encoded token (2048 bit).
+ * is the base32-encoded token.
+ *
+ * The key length of the Paillier scheme is only 128 bits (so the
+ * public key MUST be kept secret!) so that the resulting to token
+ * string is small enough to fit into the local part of an email
+ * address (which is limited to 64 characters in total).
  *
  * (c) 2014 Bernd Fix   >Y<
  *
@@ -44,17 +49,20 @@ package main
 
 import (
 	"crypto/rand"
+	"encoding/base32"
 	"encoding/json"
+	"errors"
 	"github.com/bfix/gospel/bitcoin/util"
 	"github.com/bfix/gospel/crypto"
 	"math/big"
+	"strings"
 )
 
 ///////////////////////////////////////////////////////////////////////
 // Package-local constants and variables
 
 const (
-	bitLength = 1024 // length of Paillier key
+	bitLength = 128 // length of Paillier key
 )
 
 var (
@@ -144,6 +152,9 @@ func (e *IdEngine) NewPeerId() (*PeerId, error) {
 
 //---------------------------------------------------------------------
 /*
+ * Generate a new token from a peer identifier.
+ * @param p *PeerId - peer identifier
+ * @return string - generated token (base32-encoded, trimmed)
  * @return error - error instance or nil
  */
 func (e *IdEngine) NewToken(p *PeerId) (string, error) {
@@ -151,15 +162,22 @@ func (e *IdEngine) NewToken(p *PeerId) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return util.Base58Encode(token.Bytes()), nil
+	s := base32.StdEncoding.EncodeToString(token.Bytes())
+	return strings.Trim(s, "="), nil
 }
 
 //---------------------------------------------------------------------
 /*
+ * Get a PeerId from base32-encoded token.
+ * @param tokenStr string - base32 encoded token (trimmed)
+ * @return *PeerId - recreated peer identifier
  * @return error - error instance or nil
  */
 func (e *IdEngine) GetPeerId(tokenStr string) (*PeerId, error) {
-	buf, err := util.Base58Decode(tokenStr)
+	for len(tokenStr)%8 != 0 {
+		tokenStr += "="
+	}
+	buf, err := base32.StdEncoding.DecodeString(tokenStr)
 	if err != nil {
 		return nil, err
 	}
@@ -173,6 +191,26 @@ func (e *IdEngine) GetPeerId(tokenStr string) (*PeerId, error) {
 
 //---------------------------------------------------------------------
 /*
+ * Restore a PeerId from base58-encoded representation.
+ * @param idStr string - base58 encoded peer identifier
+ * @return *PeerId - re-created peer identifier
+ * @return error - error instance or nil
+ */
+func RestorePeerId(idStr string) (*PeerId, error) {
+	buf, err := util.Base58Decode(idStr)
+	if err != nil {
+		return nil, err
+	}
+	if len(buf) != 8 {
+		return nil, errors.New("Invalid peer id string")
+	}
+	return &PeerId{id: new(big.Int).SetBytes(buf)}, nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Convert PeerId to base58-encoded representation.
+ * @return string - base58-encoded peer identifier
  */
 func (p *PeerId) String() string {
 	return util.Base58Encode(p.id.Bytes())
@@ -180,6 +218,9 @@ func (p *PeerId) String() string {
 
 //---------------------------------------------------------------------
 /*
+ * Check if to peer identifiers are equal
+ * @param q *PeerId - compare instance to this peer identifier
+ * @return bool - are peer identifiers equal?
  */
 func (p *PeerId) Equals(q *PeerId) bool {
 	return p.id.Cmp(q.id) == 0

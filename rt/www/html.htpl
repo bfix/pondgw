@@ -18,10 +18,11 @@
 	    
 	    <div id="nav">
 	    	<ul class="nav">
-	    		<li><a href="/">Home</a></li>
-	    		<li><a href="/register">Register</a></li>
-	    		<li><a href="/usage">Usage</a></li>
-	    		<li><a href="/tools">Tools</a></li>
+	    		<li><a href="/">[Home]</a></li>
+	    		<li><a href="/register">[Register]</a></li>
+	    		<li><a href="/usage">[Usage]</a></li>
+	    		<li><a href="/token">[New EMail Addresses]</a></li>
+	    		<li><a href="/tools">[Tools]</a></li>
 	    	</ul>
 	    </div>
 

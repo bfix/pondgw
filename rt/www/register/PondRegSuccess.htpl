@@ -1,23 +1,37 @@
-<h1 class="center">Pond/EMail Gateway Registration</h1>
 <div>
 	<p>You have <span class="emph">successfully registered</span> at
-	the Pond/Mail gateway as a Pond user. Your peer id is:</p>
+	the Pond/Mail gateway as a Pond user. Your PeerId is:</p>
 </div>
 <div>
 	<p class="center spacer huge"><span class="box">{{.PeerId}}</span></p>
 </div>
 <div>			
-	<p>Please write down this peer id; any email user that wants to
-	send you a message needs to know it to address you on the gateway.</p>
+	<p>Please write down this <span class="emph">PeerId</span> and keep it
+	<b>secret</b>; you need it to derive <span class="emph">receiving email
+	addresses</span> for your Pond identity on the gateway. You can give those
+	email addresses to any email user or service that you want to receive
+	messages from.</p>
+
+	<h1>Initial email addresses</h1>
+	
+	<p>We have created the first ten email addresses for you to use:</p>
+	<ul>
+	{{range .Tokens}}<li><p><span class="emph">{{.User}}+{{.}}@{{.Domain}}</span></p></li>{{end}}
+	</ul>
+
+	<p>If you need more email addresses, go to the <a href="/token">email address
+	generator</a> page.</p>	
+	
+	<h1>Next steps</h1>
 	
 	<p>You should now create a new contact for the gateway in your Pond
 	client and start a PANDA key exchange with the same shared secret you
 	have specified on the previous page.</p>
 	
-	<p class="center"><span class="emph">Enjoy your stay at the Pond/Mail gateway...</span></p>
-
-	<p>Please read the <a href="../usage#pond">Pond user tutorial</a> on how to use
-	the Pond/EMail gateway and send messages to registered email addresses.</p>
+	<p>Please also read the <a href="../usage#pond">Pond user tutorial</a> on how to use
+	the Pond/EMail gateway and send messages to email addresses.</p>
+	
+	<h2>Useful notes</h2>
 	
 	<p>If you want to unregister, simply revoke the gateway contact from
 	your buddy list and you will not receive any further messages from

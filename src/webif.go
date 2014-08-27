@@ -168,16 +168,31 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 		}
 		_, err = InsertPondUserData(id.String(), statPENDING)
 		if err == errAlreadyRegistered {
-			msgs = append(msgs, "(Temporarily) failed to register peer %s: "+err.Error())
+			msgs = append(msgs, "(Temporarily) failed to register peer: "+err.Error())
 			return false
 		}
+		tk := make([]string, 10)
+		for i := 0; i < 10; i++ {
+			tk[i], err = g.idEngine.NewToken(id)
+			if err != nil {
+				msgs = append(msgs, "(Temporarily) failed to create token: "+err.Error())
+				return false
+			}
+		}
+		addr := strings.Split(g.config.Email.Address, "@")
 		param := &PageData{
 			Title: "Successful Pond registration",
 			Root:  "../",
 			data: &struct {
 				PeerId string
+				Tokens []string
+				User   string
+				Domain string
 			}{
 				PeerId: id.String(),
+				Tokens: tk,
+				User:   addr[0],
+				Domain: addr[1],
 			},
 		}
 		RenderPage(resp, g.config.Tpls.PondRegSuccess, param)
@@ -230,9 +245,9 @@ func regHandler(resp http.ResponseWriter, req *http.Request) {
 				Title: "CAPTCHA failure",
 				Root:  "../",
 				data: &struct {
-					Root string
+					Back string
 				}{
-					Root: g.config.Web.Host,
+					Back: "../register",
 				},
 			}
 			RenderPage(resp, g.config.Web.CaptchaFail, param)
@@ -325,6 +340,63 @@ func introHandler(resp http.ResponseWriter, req *http.Request) {
 
 //---------------------------------------------------------------------
 /*
+ * Assemble the token ("email address generator") page.
+ * @param resp http.ResponseWriter - response buffer
+ * @param req *http.Request - request data
+ */
+func tokenHandler(resp http.ResponseWriter, req *http.Request) {
+
+	var tk []string = nil
+	if req.Method == "POST" {
+		if !captcha.VerifyString(req.FormValue("captchaId"), req.FormValue("captchaSolution")) {
+			param := &PageData{
+				Title: "CAPTCHA failure",
+				Root:  "../",
+				data: &struct {
+					Back string
+				}{
+					Back: "../token",
+				},
+			}
+			RenderPage(resp, g.config.Web.CaptchaFail, param)
+			return
+		}
+		id, err := RestorePeerId(req.FormValue("peerid"))
+		if err != nil {
+			ErrorPage(resp, "", "(Temporarily) failed to re-create peer identifier: "+err.Error())
+			return
+		}
+		tk = make([]string, 10)
+		for i := 0; i < 10; i++ {
+			tk[i], err = g.idEngine.NewToken(id)
+			if err != nil {
+				ErrorPage(resp, "", "(Temporarily) failed to create token: "+err.Error())
+				return
+			}
+		}
+	}
+
+	addr := strings.Split(g.config.Email.Address, "@")
+	param := &PageData{
+		Title: "EMail address generator",
+		Root:  "../",
+		data: &struct {
+			Tokens    []string
+			User      string
+			Domain    string
+			CaptchaId string
+		}{
+			Tokens:    tk,
+			User:      addr[0],
+			Domain:    addr[1],
+			CaptchaId: captcha.New(),
+		},
+	}
+	RenderPage(resp, g.config.Web.TokenPage, param)
+}
+
+//---------------------------------------------------------------------
+/*
  * Assemble the tools page.
  * @param resp http.ResponseWriter - response buffer
  * @param req *http.Request - request data
@@ -398,6 +470,7 @@ func httpsServe() {
 	http.Handle("/", http.FileServer(http.Dir(g.config.Web.Docs)))
 	http.HandleFunc("/intro", introHandler)
 	http.HandleFunc("/tools", toolsHandler)
+	http.HandleFunc("/token", tokenHandler)
 	http.HandleFunc("/usage", usageHandler)
 	http.HandleFunc("/register", formHandler)
 	http.HandleFunc("/register/", regHandler)

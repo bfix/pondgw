@@ -104,6 +104,7 @@ type WebConfig struct {
 	UsagePage   string `json:"usagePage"`
 	ErrorPage   string `json:"errorPage"`
 	ToolsPage   string `json:"toolsPage"`
+	TokenPage   string `json:"tokenPage"`
 	CaptchaFail string `json:"captchaFail"`
 }
 
