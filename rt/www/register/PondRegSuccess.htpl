@@ -16,7 +16,9 @@
 	
 	<p>We have created the first ten email addresses for you to use:</p>
 	<ul>
-	{{range .Tokens}}<li><p><span class="emph">{{.User}}+{{.}}@{{.Domain}}</span></p></li>{{end}}
+	{{with $x := .}}
+		{{range .Tokens}}<li><p><span class="hl">{{$x.User}}+{{.}}@{{$x.Domain}}</span></p></li>{{end}}
+	{{end}}
 	</ul>
 
 	<p>If you need more email addresses, go to the <a href="/token">email address

@@ -4,7 +4,7 @@
 	<form action="token" method="post">
 		<p class="field">
 			<input type="text" size="16" name="peerid" placeholder="Your peer identifier" required>
-		</p	>
+		</p>
 		<div>
 			<p>Type the numbers you see in the picture below:</p>
 			<p><img id="image" src="/captcha/{{.CaptchaId}}.png" alt="Captcha image"></p>
@@ -23,7 +23,7 @@
 	
 	<ul>
 	{{with $x := .}}
-		{{range .Tokens}}<li><p><span class="emph">{{$x.User}}+{{.}}@{{$x.Domain}}</span></p></li>{{end}}
+		{{range .Tokens}}<li><p><span class="hl">{{$x.User}}+{{.}}@{{$x.Domain}}</span></p></li>{{end}}
 	{{end}}
 	</ul>
 
