@@ -3,28 +3,24 @@
  * --------------------
  * A PeerId is a 64-bit identifier that is assigned to a Pond identity
  * during registration at the gateway. The Pond user should keep this
- * information private.
+ * information private (although there is no security risk itself if
+ * the information is known to others except that people can use
+ * "unauthorized" email addresses for the Pond identity).
  *
- * 256-bit Tokens are derived from this PeerId; the Token is the
- * Paillier-encrypted PeerId. Both keys (private and public Paillier
- * keys) are kept secret and are only known to the gateway, which uses
- * them to generate tokens and to decrypt them to PeerIds.
+ * 128-bit Tokens are derived from this PeerId; the Token is the
+ * AES256-encrypted PeerId concatenated with a 64-bit random value. The
+ * encryption key is kept secret and is only known to the gateway, which
+ * usesit to generate tokens and to decrypt them to PeerIds.
  *
- * The Paillier encryption yields different Tokens each time a PeerId
- * is encrypted; it therefore allows the Pond user to use the Tokens
- * as unrelated email-related identifiers (by giving each email contact
- * a different token) and thus obfuscating the fact that they all beong
+ * Tokens allow the Pond user to use as many unrelated email identifiers
+ * as desired; Pond users are encouraged to give each email contact a
+ * different token and thus obfuscating the fact that they all belong
  * to the same Pond identity.
  *
  * Tokens are used by email contacts (either persons or bots/mailing
  * lists) to send messages to a Pond user; the email address of a
  * Pond user looks like "pondgw+<token>@hoi-polloi.org" where "<token>"
  * is the base32-encoded token.
- *
- * The key length of the Paillier scheme is only 128 bits (so the
- * public key MUST be kept secret!) so that the resulting to token
- * string is small enough to fit into the local part of an email
- * address (which is limited to 64 characters in total).
  *
  * (c) 2014 Bernd Fix   >Y<
  *
@@ -48,25 +44,13 @@ package main
 // Import external declarations.
 
 import (
-	"crypto/rand"
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/subtle"
 	"encoding/base32"
-	"encoding/json"
 	"errors"
 	"github.com/bfix/gospel/bitcoin/util"
-	"github.com/bfix/gospel/crypto"
-	"math/big"
 	"strings"
-)
-
-///////////////////////////////////////////////////////////////////////
-// Package-local constants and variables
-
-const (
-	bitLength = 128 // length of Paillier key
-)
-
-var (
-	maxPeerId = new(big.Int).Lsh(big.NewInt(1), 64)
 )
 
 ///////////////////////////////////////////////////////////////////////
@@ -77,7 +61,7 @@ var (
  * on the Paillier encryption scheme.
  */
 type IdEngine struct {
-	PrivKey *crypto.PaillierPrivateKey
+	crypt cipher.Block
 }
 
 //---------------------------------------------------------------------
@@ -85,53 +69,29 @@ type IdEngine struct {
  * PeerId represents the base identification of Pond identites.
  */
 type PeerId struct {
-	id *big.Int
+	data []byte
 }
 
 ///////////////////////////////////////////////////////////////////////
 // Global methods
 
-/*
- * Instantiate new engine.
- * @return *IdEngine - new engine instance
- * @return error - error instance or nil
- */
-func NewIdEngine() (*IdEngine, error) {
-	var err error
-	e := new(IdEngine)
-	e.PrivKey, err = crypto.NewPaillierPrivateKey(bitLength)
-	if err != nil {
-		return nil, err
-	}
-	return e, nil
-}
-
 //---------------------------------------------------------------------
 /* Re-instantiate an IdEngine from binary data
- * @param data []byte - binary representation of an IdEngine
+ * @param data []byte - binary AES256 key
  * @return *IdEngine - new engine instance
  * @return error - error instance or nil
  */
-func RestoreIdEngine(data []byte) (*IdEngine, error) {
-	e := new(IdEngine)
-	if err := json.Unmarshal(data, e); err != nil {
-		return nil, err
+func NewIdEngine(data []byte) (*IdEngine, error) {
+	if len(data) != 32 {
+		return nil, errors.New("Invalid AES256 keysize")
 	}
-	return e, nil
-}
-
-//---------------------------------------------------------------------
-/*
- * Serialize IdEngine instance to binary data
- * @return []byte - binary representation of an IdEngine
- * @return error - error instance or nil
- */
-func (e *IdEngine) Serialize() ([]byte, error) {
-	data, err := json.Marshal(e)
+	var err error
+	e := new(IdEngine)
+	e.crypt, err = aes.NewCipher(data)
 	if err != nil {
 		return nil, err
 	}
-	return data, nil
+	return e, nil
 }
 
 //---------------------------------------------------------------------
@@ -143,7 +103,7 @@ func (e *IdEngine) Serialize() ([]byte, error) {
 func (e *IdEngine) NewPeerId() (*PeerId, error) {
 	res := new(PeerId)
 	var err error
-	res.id, err = rand.Int(rand.Reader, maxPeerId)
+	res.data, err = randBytes(8)
 	if err != nil {
 		return nil, err
 	}
@@ -158,11 +118,14 @@ func (e *IdEngine) NewPeerId() (*PeerId, error) {
  * @return error - error instance or nil
  */
 func (e *IdEngine) NewToken(p *PeerId) (string, error) {
-	token, err := e.PrivKey.GetPublicKey().Encrypt(p.id)
+	token, err := randBytes(16)
 	if err != nil {
 		return "", err
 	}
-	s := base32.StdEncoding.EncodeToString(token.Bytes())
+	copy(token, p.data)
+	enc := cipher.NewCBCEncrypter(e.crypt, make([]byte, 16))
+	enc.CryptBlocks(token, token)
+	s := base32.StdEncoding.EncodeToString(token)
 	return strings.Trim(s, "="), nil
 }
 
@@ -177,16 +140,19 @@ func (e *IdEngine) GetPeerId(tokenStr string) (*PeerId, error) {
 	for len(tokenStr)%8 != 0 {
 		tokenStr += "="
 	}
-	buf, err := base32.StdEncoding.DecodeString(tokenStr)
+	token, err := base32.StdEncoding.DecodeString(tokenStr)
 	if err != nil {
 		return nil, err
 	}
-	token := new(big.Int).SetBytes(buf)
-	val, err := e.PrivKey.Decrypt(token)
-	if err != nil {
-		return nil, err
+	if len(token) != 16 {
+		return nil, errors.New("Invalid token length")
 	}
-	return &PeerId{id: val}, nil
+	dec := cipher.NewCBCDecrypter(e.crypt, make([]byte, 16))
+	dec.CryptBlocks(token, token)
+	id := new(PeerId)
+	id.data = make([]byte, 8)
+	copy(id.data, token)
+	return id, nil
 }
 
 //---------------------------------------------------------------------
@@ -204,7 +170,7 @@ func RestorePeerId(idStr string) (*PeerId, error) {
 	if len(buf) != 8 {
 		return nil, errors.New("Invalid peer id string")
 	}
-	return &PeerId{id: new(big.Int).SetBytes(buf)}, nil
+	return &PeerId{data: buf}, nil
 }
 
 //---------------------------------------------------------------------
@@ -213,7 +179,7 @@ func RestorePeerId(idStr string) (*PeerId, error) {
  * @return string - base58-encoded peer identifier
  */
 func (p *PeerId) String() string {
-	return util.Base58Encode(p.id.Bytes())
+	return util.Base58Encode(p.data)
 }
 
 //---------------------------------------------------------------------
@@ -223,5 +189,24 @@ func (p *PeerId) String() string {
  * @return bool - are peer identifiers equal?
  */
 func (p *PeerId) Equals(q *PeerId) bool {
-	return p.id.Cmp(q.id) == 0
+	return subtle.ConstantTimeCompare(p.data, q.data) == 1
+}
+
+//---------------------------------------------------------------------
+/*
+ * Generate an array of random bytes
+ * @param size int - number of bytes requested
+ * @return []byte - generated byte array
+ * @return error - error instance or nil
+ */
+func randBytes(size int) ([]byte, error) {
+	data := make([]byte, size)
+	n, err := g.prng.Read(data)
+	if err != nil {
+		return nil, err
+	}
+	if n != size {
+		return nil, errors.New("PRNG failure")
+	}
+	return data, nil
 }

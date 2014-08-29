@@ -23,9 +23,8 @@ package main
 // Import external declarations.
 
 import (
-	"encoding/json"
+	"crypto/rand"
 	"fmt"
-	"github.com/bfix/gospel/bitcoin/util"
 	"testing"
 )
 
@@ -37,26 +36,14 @@ import (
  */
 func TestPeerIdScheme(t *testing.T) {
 
-	// generate new Paillier key pair
-	e, err := NewIdEngine()
+	g.prng = rand.Reader
+
+	// generate new IdEngine
+	key, err := randBytes(32)
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	data, err := e.Serialize()
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("IdEngine: " + util.Base58Encode(data))
-
-	pubKey, err := json.Marshal(e.PrivKey.GetPublicKey())
-	if err != nil {
-		t.Fatal(err)
-	}
-	fmt.Println("PubKey: " + string(pubKey))
-
-	// instantiate id engine
-	e, err = RestoreIdEngine(data)
+	e, err := NewIdEngine(key)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -31,4 +31,10 @@ openssl genrsa -out webif.key 2048
 openssl req -new -key webif.key -out webif.csr
 openssl x509 -req -days 720 -in webif.csr -signkey webif.key -out cert.pem -outform pem
 
+##################################################
+# Generate key for IdEngine
+##################################################
+
+dd if=/dev/urandom bs=32 count=1 2>/dev/null | od -t x1 -A none | tr "\n" " " | sed -e "s/[[:space:]]//g" -e "s/\(.*\)/\1\n/"
+
 exit 0

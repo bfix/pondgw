@@ -119,21 +119,11 @@ type ControlConfig struct {
 
 //---------------------------------------------------------------------
 /*
- * IdEngine-related configuration settings
- */
-type IdEngineConfig struct {
-	Instance string `json:"instance"`
-	PubN     string `json:"pubN"`
-	PubG     string `json:"pubG"`
-}
-
-//---------------------------------------------------------------------
-/*
  * Combined configuration data
  */
 type Config struct {
 	Control  *ControlConfig  `json:"control"`
-	IdEngine *IdEngineConfig `json:"idEngine"`
+	IdEngine string          `json:"idEngine"`
 	Database *DatabaseConfig `json:"database"`
 	Web      *WebConfig      `json:"webif"`
 	Proxy    string          `json:"proxy"` // SOCKS5 URL

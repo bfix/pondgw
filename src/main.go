@@ -31,9 +31,9 @@ import (
 	"code.google.com/p/go.crypto/openpgp"
 	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"flag"
 	"fmt"
-	"github.com/bfix/gospel/bitcoin/util"
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
 	"io"
@@ -110,9 +110,9 @@ func main() {
 
 	// initialize modules (and global parameters)
 	g.prng = rand.Reader
-	data, err := util.Base58Decode(g.config.IdEngine.Instance)
+	key, err := hex.DecodeString(g.config.IdEngine)
 	if err == nil {
-		if g.idEngine, err = RestoreIdEngine(data); err == nil {
+		if g.idEngine, err = NewIdEngine(key); err == nil {
 			if err = InitPondModule(); err == nil {
 				if err = InitMailModule(); err == nil {
 					err = InitUserModule()
