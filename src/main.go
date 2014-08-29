@@ -37,6 +37,8 @@ import (
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
 	"io"
+	"os"
+	"os/signal"
 	"runtime"
 	"strconv"
 	"time"
@@ -141,6 +143,9 @@ func main() {
 	mailCtrl := make(chan int)
 	go PollMailServer(mailMsgIn, mailCtrl)
 
+	signalCh := make(chan os.Signal, 5)
+	signal.Notify(signalCh)
+
 	heartbeat := time.NewTicker(24 * time.Hour)
 	for {
 		select {
@@ -150,9 +155,20 @@ func main() {
 				logger.Println(logger.ERROR, err.Error())
 			}
 
+		// handle system signals
+		case sig := <-signalCh:
+			if sig != os.Kill && sig != os.Interrupt {
+				logger.Println(logger.INFO, "Unhandled signal: "+sig.String())
+				continue
+			}
+			logger.Println(logger.INFO, "Terminating application (on signal).")
+			mailCtrl <- MAIL_CMD_QUIT
+			g.client.Shutdown()
+			return
+
 		// request for termination
 		case <-ch:
-			logger.Println(logger.INFO, "Terminating application.")
+			logger.Println(logger.INFO, "Terminating application (on request).")
 			mailCtrl <- MAIL_CMD_QUIT
 			g.client.Shutdown()
 			return
