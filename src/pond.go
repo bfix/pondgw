@@ -24,6 +24,7 @@ package main
 
 import (
 	"./pond"
+	"bytes"
 	"fmt"
 	"github.com/bfix/gospel/logger"
 	"strings"
@@ -86,6 +87,24 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 							logger.Printf(logger.INFO, "Failed to forward message to '%s'\n", rcpt)
 						}
 
+					} else if strings.TrimSpace(body[0]) == "gen-tokens" {
+						buf := new(bytes.Buffer)
+						id, err := RestorePeerId(n.Info)
+						if err != nil {
+							logger.Printf(logger.INFO, "Invalid peer id '%s' requested tokens.\n", n.Info)
+							continue
+						}
+						for i := 0; i < 10; i++ {
+							tk, err := g.idEngine.NewToken(id)
+							if err != nil {
+								buf.WriteString(err.Error() + "\n")
+							} else {
+								buf.WriteString(tk + "\n")
+							}
+						}
+						if err = SendPondMessage(n.Info, string(buf.Bytes())); err != nil {
+							logger.Printf(logger.INFO, "Failed to send new tokens to '%s'.\n", n.Info)
+						}
 					} else {
 						logger.Printf(logger.INFO, "Skipping message from '%s'\n", n.Info)
 					}
