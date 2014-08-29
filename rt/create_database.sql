@@ -12,7 +12,7 @@ create table email (
     id int not null auto_increment,
     ts timestamp default current_timestamp on update current_timestamp,
     status int default 0,
-    addr varchar(128) not null,
+    addr varchar(255) not null,
     pubkey mediumblob not null,
     token varchar(32) not null,
     primary key(id)
