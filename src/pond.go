@@ -77,16 +77,26 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 				if !msg.Acked {
 					body := strings.Split(string(msg.Message.Body), "\n")
 					if strings.HasPrefix(body[0], "To:") {
+						outMsg := msg.Message.Body
 						rcpt := strings.TrimSpace(body[0][3:])
 						logger.Printf(logger.INFO, "Forwarding message from '%s' to '%s'\n", n.Info, rcpt)
 						if !strings.HasPrefix(body[1], "From:") {
-							logger.Printf(logger.INFO, "No source specified -- skipping message from '%s'\n", n.Info)
-							continue
+							id, err := RestorePeerId(n.Info)
+							if err != nil {
+								logger.Printf(logger.INFO, "Invalid peer id '%s' trying to send message.\n", n.Info)
+								continue
+							}
+							tk, err := g.idEngine.NewToken(id)
+							if err != nil {
+								logger.Printf(logger.INFO, "Failed to generate transient email address: %s\n", err.Error())
+								continue
+							}
+							addr := strings.Split(g.config.Email.Address, "@")
+							outMsg = append([]byte("From: "+addr[1]+"+"+tk+"@"+addr[2]+"\n"), outMsg...)
 						}
-						if err := SendEmailMessage(rcpt, msg.Message.Body); err != nil {
+						if err := SendEmailMessage(rcpt, outMsg); err != nil {
 							logger.Printf(logger.INFO, "Failed to forward message to '%s'\n", rcpt)
 						}
-
 					} else if strings.TrimSpace(body[0]) == "gen-tokens" {
 						buf := new(bytes.Buffer)
 						id, err := RestorePeerId(n.Info)
