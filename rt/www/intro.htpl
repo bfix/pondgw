@@ -1,7 +1,7 @@
 <p>The security-aware user can also reach this website at <span class="emph">{{.Hidden}}</span></p>
 
 <h1>What is this?</h1>
-<p>This is a <span class="emph">highly experimental version (&alpha; stage)</span>
+<p>This is an <span class="emph">experimental version (&beta; stage)</span>
 of a message gateway between Pond and EMail accounts. It is <i>Free/Libre Open
 Source Software</i> and can be downloaded from a <a href="https://github.com/bfix/pondgw"
 target="_blank">Github repository</a>.</p>
