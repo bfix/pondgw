@@ -191,7 +191,6 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 	for _, s := range msg {
 		buf.WriteString(s + "\n")
 	}
-
 	getInfo := func(key int, data string) interface{} {
 		switch key {
 		case network.INFO_SENDER:
@@ -204,6 +203,8 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 				return nil
 			}
 			return keyring[0]
+		case network.INFO_IDENTITY:
+			return g.identity
 		}
 		return nil
 	}
