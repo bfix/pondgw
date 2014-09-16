@@ -205,6 +205,8 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 			return keyring[0]
 		case network.INFO_IDENTITY:
 			return g.identity
+		case network.INFO_PASSPHRASE:
+			return g.config.Email.Passphrase
 		}
 		return nil
 	}
