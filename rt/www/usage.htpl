@@ -22,7 +22,7 @@ you will see a "success" page. This page will display a unique <span class="emph
 that is assigned to your Pond identity on the gateway. Write down this identifier and
 <span class="emph">keep it secret</span>.</p>
 
-<p> Now create a new Pond contact for the gateway and enter the same shared secret you used in
+<p>Now create a new Pond contact for the gateway and enter the same shared secret you used in
 the registration. Once the key exchange is complete, you can start exchange messages with EMail
 users or services.</p>
 
@@ -34,20 +34,24 @@ of email addresses at her/his disposal that are generated from the
 <span class="emph">PeerId</span> by the Pond user. So you can give away a separate
 email address to every email user or service you want to exchange messages with.</p>
 
-<a name="token"><p>Each of your email addresses has the form:</p></a>
+<a name="token"/><p>Each of your email addresses has the form:</p>
 
 <p class="code">{{.User}}+<span class="hl">&lt;Token&gt;</span>@{{.Domain}}</p>
 
 <p>The <span class="emph">Token</span> that is part of your email address is derived
-from your <span class="emph">PeerId</span>. To generate new tokens, go to the
-<a href="/token">token generator</a> page.</p>
+from your <span class="emph">PeerId</span>. To generate new tokens, either go to the
+<a href="/token">token generator</a> page or send a Pond message to the gateway, where
+the first (and only) body line reads <b><i>"gen-tokens"</i></b>. In this case you will
+receive a reply with ten new email addresses for you to use.</p>
 
 <h2>3. Send a message to an email address</h2>
 
-<p>Compose a message to the gateway contact and send it. The first two lines of the message
-<b><i>must</i></b> specify the <span class="emph">receiving email address</span> and the
-<span class="emph">return path</span> for replies (which includes a token like in the previous
-section), the rest of the message is up to you:</p>
+<p>Compose a message to the gateway contact and send it. The first line of the message
+<b><i>must</i></b> specify the <span class="emph">receiving email address</span>; the second
+line <b><i>should</i></b> specify the <span class="emph">return path</span> for replies
+(which includes a token like in the previous section). If the "From:" line is missing, the
+gateway will generate a transient reply address for the given Pond account. The rest of the
+message is up to you:</p>
 
 <div class="msg">
 	<p>To: fred@company.edu</p>
@@ -70,12 +74,13 @@ section), the rest of the message is up to you:</p>
 	will never get a notification.</p></li>
 	
 	<li><p><b><i>We highly recommend</i></b> to only send additionally encrypted content, so the
-	forwarding gateway cannot read the plaintext message. Since the receiving email address
+	forwarding gateway cannot read the plain-text message. Since the receiving email address
 	probably has an OpenPGP public key, it is the easiest to use GnuPG to encrypt the message
 	first and then paste it into the Pond message you want to send:</p>
 
 		<div class="msg">
 			<p>To: fred@company.edu</p>
+			<p>From: {{.User}}+<span class="hl">&lt;token&gt;</span>@{{.Domain}}</p>
 			<p>-----BEGIN PGP MESSAGE-----</p>
 			<p>Version: GnuPG v2</p>
 			<p>&nbsp;</p>
