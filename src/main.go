@@ -28,7 +28,7 @@ package main
 
 import (
 	"./pond"
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"

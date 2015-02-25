@@ -25,7 +25,7 @@ package main
 import (
 	"bufio"
 	"bytes"
-	"code.google.com/p/go.crypto/openpgp"
+	"golang.org/x/crypto/openpgp"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
