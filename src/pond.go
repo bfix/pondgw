@@ -1,7 +1,7 @@
 /*
  * Pond client interface.
  *
- * (c) 2013-2014 Bernd Fix   >Y<
+ * (c) 2013-2015 Bernd Fix   >Y<
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -71,7 +71,7 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 			case pond.MF_RECEIVED:
 				msg := g.client.GetInboxMessage(n.Id)
 				if msg == nil {
-					logger.Println(logger.INFO, "Unknown inbox message?!")
+					logger.Println(logger.WARN, "Unknown inbox message?!")
 					continue
 				}
 				if !msg.Acked {
@@ -83,25 +83,25 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 						if !strings.HasPrefix(body[1], "From:") {
 							id, err := RestorePeerId(n.Info)
 							if err != nil {
-								logger.Printf(logger.INFO, "Invalid peer id '%s' trying to send message.\n", n.Info)
+								logger.Printf(logger.WARN, "Invalid peer id '%s' trying to send message.\n", n.Info)
 								continue
 							}
 							tk, err := g.idEngine.NewToken(id)
 							if err != nil {
-								logger.Printf(logger.INFO, "Failed to generate transient email address: %s\n", err.Error())
+								logger.Printf(logger.WARN, "Failed to generate transient email address: %s\n", err.Error())
 								continue
 							}
 							addr := strings.Split(g.config.Email.Address, "@")
-							outMsg = append([]byte("From: "+addr[1]+"+"+tk+"@"+addr[2]+"\n"), outMsg...)
+							outMsg = append([]byte("From: "+addr[0]+"+"+tk+"@"+addr[1]+"\n"), outMsg...)
 						}
 						if err := SendEmailMessage(rcpt, outMsg); err != nil {
-							logger.Printf(logger.INFO, "Failed to forward message to '%s'\n", rcpt)
+							logger.Printf(logger.WARN, "Failed to forward message to '%s'\n", rcpt)
 						}
 					} else if strings.TrimSpace(body[0]) == "gen-tokens" {
 						buf := new(bytes.Buffer)
 						id, err := RestorePeerId(n.Info)
 						if err != nil {
-							logger.Printf(logger.INFO, "Invalid peer id '%s' requested tokens.\n", n.Info)
+							logger.Printf(logger.WARN, "Invalid peer id '%s' requested tokens.\n", n.Info)
 							continue
 						}
 						for i := 0; i < 10; i++ {
@@ -113,10 +113,10 @@ func HandleMessageNotifications(mfc <-chan pond.MessageFeedback) {
 							}
 						}
 						if err = SendPondMessage(n.Info, string(buf.Bytes())); err != nil {
-							logger.Printf(logger.INFO, "Failed to send new tokens to '%s'.\n", n.Info)
+							logger.Printf(logger.WARN, "Failed to send new tokens to '%s'.\n", n.Info)
 						}
 					} else {
-						logger.Printf(logger.INFO, "Skipping message from '%s'\n", n.Info)
+						logger.Printf(logger.WARN, "Skipping message from '%s'\n", n.Info)
 					}
 					g.client.AckMessage(n.Id)
 				}
