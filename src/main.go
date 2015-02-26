@@ -28,7 +28,6 @@ package main
 
 import (
 	"./pond"
-	"golang.org/x/crypto/openpgp"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
@@ -36,6 +35,7 @@ import (
 	"fmt"
 	"github.com/bfix/gospel/logger"
 	"github.com/bfix/gospel/network"
+	"golang.org/x/crypto/openpgp"
 	"io"
 	"os"
 	"os/signal"
