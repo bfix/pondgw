@@ -31,7 +31,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 package pond
 
 import (
-	"code.google.com/p/go.crypto/curve25519"
 	"code.google.com/p/goprotobuf/proto"
 	"encoding/hex"
 	"errors"
@@ -41,6 +40,7 @@ import (
 	"github.com/agl/pond/client/disk"
 	"github.com/agl/pond/panda"
 	pond "github.com/agl/pond/protos"
+	"golang.org/x/crypto/curve25519"
 	"io"
 	"os"
 	"sync"

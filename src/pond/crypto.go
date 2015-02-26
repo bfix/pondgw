@@ -32,11 +32,11 @@ package pond
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/nacl/box"
 	"code.google.com/p/goprotobuf/proto"
 	"crypto/sha256"
 	"encoding/binary"
 	pond "github.com/agl/pond/protos"
+	"golang.org/x/crypto/nacl/box"
 	"io"
 	"time"
 )

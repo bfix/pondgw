@@ -32,8 +32,6 @@ package pond
 
 import (
 	"bytes"
-	"code.google.com/p/go.crypto/curve25519"
-	"code.google.com/p/go.crypto/nacl/box"
 	"code.google.com/p/goprotobuf/proto"
 	"crypto/rand"
 	"crypto/sha256"
@@ -46,6 +44,8 @@ import (
 	pond "github.com/agl/pond/protos"
 	"github.com/agl/pond/transport"
 	"github.com/bfix/gospel/network"
+	"golang.org/x/crypto/curve25519"
+	"golang.org/x/crypto/nacl/box"
 	mrand "math/rand"
 	"net/url"
 	"strconv"
