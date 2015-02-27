@@ -5,8 +5,8 @@
 		<meta name="author" content="Bernd Fix <brf@hoi-polloi.org>"></meta>
 		<meta name="robots" content="INDEX,FOLLOW"></meta>
 		<meta name="revisit-after" Content="20 days"></meta>
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 		<link rel="stylesheet" type="text/css" href="{{.Root}}pondgw.css"></link>
-		<link rel="stylesheet" type="text/css" href="pondgw.css"></link>
 	</head>
 	<body>
     	<ul class="nav">
@@ -21,10 +21,7 @@
 
 		<div class="site-wrap">
 		    <div id="header">
-		    	<div id="logo"><img src="images/logo.png"/></div>
-		    	<div id="head">
-		    		<p id="title">Pond/EMail Gateway</p>
-		    	</div>
+		    	<p id="title"><img id="logo" src="images/logo.png"/> &nbsp; Pond/EMail Gateway</p>
 		    </div>
 		    
 			<div class="content">
@@ -57,7 +54,7 @@
 		    	<div class="foot-right">
 		    	</div>
 		    	<div class="clear">
-		    		<p id="subtitle">&copy; 2014 Bernd Fix &nbsp;&nbsp;&nbsp;&gt;Y&lt;</p>
+		    		<p id="subtitle">&copy; 2014-2015 Bernd Fix &nbsp;&nbsp;&nbsp;&gt;Y&lt;</p>
 		    	</div>
 		    </div>
 		</div>

@@ -10,6 +10,7 @@ body {
 	background: white;
 	font-size: 90%;
 }
+
 ul.nav {
     list-style: none;
     background: black;
@@ -75,7 +76,7 @@ label[for="nav-trigger"] {
 }
 
 .site-wrap {
-	width: 1024px;
+	max-width: 1024px;
 	padding-left: 50px;
     min-height: 100%;
     background-color: white;
@@ -87,7 +88,7 @@ label[for="nav-trigger"] {
 }
 
 .content {
-	width: 1024px;
+	width: 100%;
 	background: white;
 	margin: 0px auto;
 	zoom: 1;
@@ -116,30 +117,20 @@ label[for="nav-trigger"] {
 }
 
 #logo {
-	margin-left: 100px;
-	float: left;
-	width: 200px;
-	top: 0px;
-}
-
-#head {
-	float: right;
-	margin-right: 100px;
-	width: 600px;
+	margin-left: 2em;
 }
 
 #title {
-	font-size: 300%;
+	font-size: 200%;
 	font-family: sans;
 	font-weight: bold;
 	text-align: right;
-	top: 0px;
 }
 
 
 .main {
 	float: left;
-	width: 700px;
+	max-width: 700px;
 	background: white;
 	line-height: 180%;
 	margin: 20px auto;
@@ -172,12 +163,10 @@ div.regform {
 
 div.foot-left {
 	float: left;
-	width: 700px;
 }
 
 div.foot-right {
 	float: right;
-	width: 250px;
 }
 
 div.clear {
@@ -230,11 +219,16 @@ hr {
 }
 
 .box {
-	-moz-border-radius: 10px;
-	border-radius: 10px;
 	padding: 20px;
 	outline: 2px solid #f4b318;
 	background: white;
+	color: black;
+}
+
+.notus {
+	padding: 20px;
+	outline: 2px solid #f4b318;
+	background: #f4e0b0;
 	color: black;
 }
 

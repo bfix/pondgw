@@ -1,4 +1,10 @@
-<p>The security-aware user can also reach this website at <span class="emph">{{.Hidden}}</span></p>
+<div class="notus">
+	<p class="button"><b><font size="+3">NOTUS (Notices To Users)</font></b></p>
+	<ul>
+		<li><p>The security-aware user can also reach this website
+		at <span class="emph">{{.Hidden}}</span></p></li>
+	</ul>
+</div>
 
 <h1>What is this?</h1>
 <p>This is an <span class="emph">experimental version (&beta; stage)</span>
