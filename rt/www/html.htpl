@@ -9,55 +9,57 @@
 		<link rel="stylesheet" type="text/css" href="pondgw.css"></link>
 	</head>
 	<body>
-	    <div id="header">
-	    	<div id="logo"><img src="images/logo.png"/></div>
-	    	<div id="head">
-	    		<p id="title">Pond/EMail Gateway</p>
-	    	</div>
-	    </div>
-	    
-	    <div id="nav">
-	    	<ul class="nav">
-	    		<li><a href="/">[Home]</a></li>
-	    		<li><a href="/register">[Register]</a></li>
-	    		<li><a href="/usage">[Usage]</a></li>
-	    		<li><a href="/token">[New EMail Addresses]</a></li>
-	    		<li><a href="/tools">[Tools]</a></li>
-	    	</ul>
-	    </div>
+    	<ul class="nav">
+    		<li><a href="/"        >Home</a></li>
+    		<li><a href="/register">Register</a></li>
+    		<li><a href="/usage"   >Usage</a></li>
+    		<li><a href="/token"   >Token</a></li>
+    		<li><a href="/tools"   >Tools</a></li>
+    	</ul>
+    	<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+		<label for="nav-trigger"></label>
 
-		<div class="content">
-		    <div class="main">
-		    	{{.Content}}
+		<div class="site-wrap">
+		    <div id="header">
+		    	<div id="logo"><img src="images/logo.png"/></div>
+		    	<div id="head">
+		    		<p id="title">Pond/EMail Gateway</p>
+		    	</div>
 		    </div>
-		    <div class="sidebar">
-		    	<div class="spacer">
-			    	<div class="box">
-						<p class="button"><a class="button solid" href="/register">Register</a></p>
-						<p><small><b>If you are a Pond user</b> you <u>need</u> to register (and to peer)
-						with the gateway to be able to use its services.</small></p>
-						<p><small><b>If you are an EMail user</b> you <u>should</u> register at
-						the gateway to receive messages encrypted with your GnuPG key.</small></p>
-						<p><small>Registration (and the service itself) is free and does <b>not</b>
-						require you to reveal <i>who you are</i> or <i>what you are doing</i>.
-						We respect the privacy of our users.</small></p>
+		    
+			<div class="content">
+			    <div class="main">
+			    	{{.Content}}
+			    </div>
+			    <div class="sidebar">
+			    	<div class="spacer">
+				    	<div class="box">
+							<p class="button"><a class="button solid" href="/register">Register</a></p>
+							<p><small><b>If you are a Pond user</b> you <u>need</u> to register (and to peer)
+							with the gateway to be able to use its services.</small></p>
+							<p><small><b>If you are an EMail user</b> you <u>should</u> register at
+							the gateway to receive messages encrypted with your GnuPG key.</small></p>
+							<p><small>Registration (and the service itself) is free and does <b>not</b>
+							require you to reveal <i>who you are</i> or <i>what you are doing</i>.
+							We respect the privacy of our users.</small></p>
+				    	</div>
 			    	</div>
+			    </div>
+			</div>
+			    
+		    <div id="footer">
+		    	<div class="foot-left">
+					<p id="disclaimer"><b>DISCLAIMER</b>: The gateway service may be unavailable or may suffer loss of data
+					at any time. Please be patient with us if it fails or delivers unexpected
+					results. Nonetheless: please register and use the service so we can
+					improve the gateway to serve you all better in the future.</p>
+		    	</div>
+		    	<div class="foot-right">
+		    	</div>
+		    	<div class="clear">
+		    		<p id="subtitle">&copy; 2014 Bernd Fix &nbsp;&nbsp;&nbsp;&gt;Y&lt;</p>
 		    	</div>
 		    </div>
 		</div>
-		    
-	    <div id="footer">
-	    	<div class="foot-left">
-				<p id="disclaimer"><b>DISCLAIMER</b>: The gateway service may be unavailable or may suffer loss of data
-				at any time. Please be patient with us if it fails or delivers unexpected
-				results. Nonetheless: please register and use the service so we can
-				improve the gateway to serve you all better in the future.</p>
-	    	</div>
-	    	<div class="foot-right">
-	    	</div>
-	    	<div class="clear">
-	    		<p id="subtitle">&copy; 2014 Bernd Fix &nbsp;&nbsp;&nbsp;&gt;Y&lt;</p>
-	    	</div>
-	    </div>
 	</body>
 </html>
