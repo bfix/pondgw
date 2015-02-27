@@ -17,13 +17,13 @@ ul.nav {
     width: 100px;
     height: 200px;;
     position: fixed;
-    top: 5;
-    right: 0;
-    bottom: 0;
-    left: 5;
+    top: 5px;
+    right: 0px;
+    bottom: 0px;
+    left: 5px;
     z-index: 0;
-    margin: 5;
-    padding: 0;
+    margin: 5px;
+    padding: 0px;
     overflow: hidden;
 }
 
@@ -81,27 +81,17 @@ label[for="nav-trigger"] {
     min-height: 100%;
     background-color: white;
     position: relative;
-    top: 0;
+    top: 0px;
     bottom: 100%;
-    left: 0;
+    left: 0px;
     z-index: 1;
 }
 
 .content {
+	display: table;
 	width: 100%;
 	background: white;
-	margin: 0px auto;
-	zoom: 1;
-}
-
-.content:before,
-.content:after {
-	content: "";
-	display: table;
-}
-
-.content:after {
-	clear:both;
+	margin: 1em auto;
 }
 
 #header {
@@ -127,25 +117,43 @@ label[for="nav-trigger"] {
 	text-align: right;
 }
 
-
 .main {
-	float: left;
-	max-width: 700px;
-	background: white;
-	line-height: 180%;
-	margin: 20px auto;
-	display: inline;
-}
-
-div.regform {
-	height: 50em;
+        display: table-cell;
+        max-width: 700px;
+        min-width: 320px;
+        background: white;
+        line-height: 180%;
+        margin: 20px auto;
 }
 
 .sidebar {
-	float: right;
-	width: 250px;
-	line-height: 120%;
-	display: inline;
+        display: table-cell;
+        max-width: 250px;
+        line-height: 120%;
+}
+
+div.regform {
+	height: 55em;
+}
+
+@media only screen and (max-width: 640px) {
+        .sidebar {
+                display: table-row;
+        }
+
+        div.regform {
+                height: 65em;
+        }       
+}
+
+@media only screen and (max-width: 320px) {
+        .sidebar {
+                display: table-row;
+        }
+
+        div.regform {
+                height: 75em;
+        }       
 }
 
 #footer {
@@ -266,7 +274,7 @@ hr {
 	font-family: monospace;
 	font-weight: bold;
 	font-size: 150%;
-	padding-left: 5em;
+	padding-left: 2em;
 }
 
 a.button {
@@ -358,6 +366,7 @@ a.button {
 
 .field > input {
 	font-size: 150%;
+	width: 100%;
 }
 
 input, textarea {
