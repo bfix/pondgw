@@ -1,7 +1,7 @@
 /*
  * Handle SMTP to send and POP3 to receive messages
  *
- * (c) 2013-2014 Bernd Fix    >Y<
+ * (c) 2013-2015 Bernd Fix    >Y<
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -149,28 +149,28 @@ func PollMailServer(ch chan<- MailMessage, ctrl <-chan int) {
 			sess, err := network.POP3Connect(g.config.Email.POP3, g.config.Proxy)
 			if err != nil {
 				logger.Println(logger.ERROR, err.Error())
-				continue
-			}
-			logger.Println(logger.INFO, "Listing unread messages")
-			idList, err := sess.ListUnread()
-			if err != nil {
-				logger.Println(logger.ERROR, err.Error())
-				logger.Println(logger.INFO, "Disconnecting from server")
-				sess.Close()
-				continue
-			}
-			logger.Printf(logger.INFO, "%d unread message(s) found\n", len(idList))
-			for _, id := range idList {
-				msg, err := sess.Retrieve(id)
+			} else {
+				logger.Println(logger.INFO, "Listing unread messages")
+				idList, err := sess.ListUnread()
 				if err != nil {
 					logger.Println(logger.ERROR, err.Error())
-					continue
+				} else {
+					logger.Printf(logger.INFO, "%d unread message(s) found\n", len(idList))
+					for _, id := range idList {
+						logger.Printf(logger.DBG, "Retrieving message %d from server\n", id)
+						msg, err := sess.Retrieve(id)
+						if err != nil {
+							logger.Println(logger.ERROR, err.Error())
+						} else {
+							ch <- msg
+							logger.Printf(logger.DBG, "Deleting message %d from server\n", id)
+							sess.Delete(id)
+						}
+					}
 				}
-				ch <- msg
-				sess.Delete(id)
+				logger.Println(logger.INFO, "Disconnecting from server")
+				sess.Close()
 			}
-			logger.Println(logger.INFO, "Disconnecting from server")
-			sess.Close()
 			heartbeat = wait(g.config.Email.Poll)
 		}
 	}
@@ -227,7 +227,7 @@ func HandleIncomingMailMessage(msg MailMessage) error {
 	} else if strings.HasPrefix(body[0], "To:") {
 		toAddr = strings.TrimSpace(body[0][3:])
 	} else {
-		logger.Printf(logger.INFO, "Dropping message '%v'\n", content)
+		logger.Printf(logger.INFO, "Dropping message:\n%s\n", content.Body)
 		return nil
 	}
 	rcpt, err := g.idEngine.GetPeerId(toAddr)
