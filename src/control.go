@@ -2,7 +2,7 @@
  * The control server instance provides a telnet interface for the
  * administration of the Pond/Email gateway service.
  *
- * (c) 2014 Bernd Fix   >Y<
+ * (c) 2014-2015 Bernd Fix   >Y<
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -55,8 +55,10 @@ func (c *ControlSrv) Process(client net.Conn) {
 		b.WriteString("(T)erminate application\n")
 		b.WriteString("e(X)it\n")
 		b.WriteString("-----------------------------------\n")
+		b.WriteString("(D)rop contact\n")
+		b.WriteString("(S)how contacts\n")
+		b.WriteString("-----------------------------------\n")
 		b.WriteString("Enter command: ")
-		b.Flush()
 
 		// get command input
 		cmd, err := readCmd(b)
@@ -68,21 +70,46 @@ func (c *ControlSrv) Process(client net.Conn) {
 		logger.Println(logger.INFO, "[ctrl] command '"+cmd+"'")
 		switch cmd {
 		//-------------------------------------------------
+		// contacts
+		//-------------------------------------------------
+		case "D":
+			b.WriteString("Contact name: ")
+			b.Flush()
+			contactName, _ := readInp(b)
+			contact := g.client.GetContact(contactName)
+			if contact == nil {
+				b.WriteString("No matching contact found!\n")
+			} else {
+				b.WriteString("Do you really want to delete this contact? Enter YES to continue: ")
+				cmd, _ = readCmd(b)
+				if cmd == "YES" {
+					logger.Printf(logger.WARN, "[ctrl] Deleting contact %s", contactName)
+					b.WriteString("Deleting contact...\n")
+					g.client.DeleteContact(contact)
+				} else {
+					b.WriteString("Wrong response -- deletion aborted!\n")
+				}
+			}
+
+		case "S":
+			b.WriteString("List of existing contacts:\n")
+			for _, name := range g.client.GetContacts() {
+				b.WriteString(name+"\n")
+			}
+
+		//-------------------------------------------------
 		// Terminate application
 		//-------------------------------------------------
 		case "T":
 			b.WriteString("Are you sure? Enter YES to continue: ")
-			b.Flush()
 			cmd, _ = readCmd(b)
 			if cmd == "YES" {
 				logger.Println(logger.WARN, "[ctrl] Terminating application")
 				b.WriteString("Terminating application...")
-				b.Flush()
 				c.Ch <- true
 			} else {
 				logger.Println(logger.WARN, "[ctrl] Response '"+cmd+"' -- Termination aborted!")
 				b.WriteString("Wrong response -- Termination aborted!")
-				b.Flush()
 			}
 
 		//-------------------------------------------------
@@ -90,7 +117,6 @@ func (c *ControlSrv) Process(client net.Conn) {
 		//-------------------------------------------------
 		case "L":
 			b.WriteString("Enter new log level (CRITICAL,SEVERE,ERROR,WARN,INFO,DBG_HIGH,DBG,DBG_ALL): ")
-			b.Flush()
 			cmd, _ = readCmd(b)
 			logger.SetLogLevelFromName(cmd)
 
@@ -153,17 +179,33 @@ func (c *ControlSrv) GetName() string {
 // Private helper methods
 
 /*
- * Read command/input from connection.
+ * Read input from connection.
+ * @param b *bufioReadWriter - reader
+ * @return inp string - read input
+ * @return err error - error state
+ */
+func readInp(b *bufio.ReadWriter) (inp string, err error) {
+	b.Flush()
+	line, err := b.ReadBytes('\n')
+	if err != nil {
+		return "", err
+	}
+	inp = strings.TrimSpace(string(line))
+	return inp, nil
+}
+
+//---------------------------------------------------------------------
+/*
+ * Read command from connection.
  * @param b *bufioReadWriter - reader
  * @return cmd string - read input
  * @return err error - error state
  */
 func readCmd(b *bufio.ReadWriter) (cmd string, err error) {
-	line, err := b.ReadBytes('\n')
+	cmd, err = readInp(b)
 	if err != nil {
 		return "", err
 	}
-	// get rid of enclosing white spaces
-	cmd = strings.Trim(string(line), " \t\n\v\r")
-	return strings.ToUpper(cmd), nil
+	cmd = strings.ToUpper(cmd)
+	return cmd, nil
 }

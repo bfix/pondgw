@@ -331,3 +331,128 @@ func (c *Client) Send(to *Contact, message *pond.Message) error {
 
 	return nil
 }
+
+func (c *Client) GetContact(name string) *Contact {
+	for _, contact := range c.contacts {
+		if contact.name == name {
+			return contact
+		}
+	}
+	return nil
+}
+
+func (c *Client) GetContacts() []string {
+	list := make([]string, 0)
+	for _, contact := range c.contacts {
+		list = append(list, contact.name)
+	}
+	return list
+}
+
+func (c *Client) DeleteContact(contact *Contact) {
+	var newInbox []*InboxMessage
+	for _, msg := range c.inbox {
+		if msg.From == contact.id {
+			continue
+		}
+		newInbox = append(newInbox, msg)
+	}
+	c.inbox = newInbox
+
+	for _, draft := range c.drafts {
+		if draft.to == contact.id {
+			draft.to = 0
+		}
+	}
+
+	c.queueMutex.Lock()
+	var newQueue []*OutboxMessage
+	for _, msg := range c.queue {
+		if msg.to == contact.id && !msg.revocation {
+			continue
+		}
+		newQueue = append(newQueue, msg)
+	}
+	c.queue = newQueue
+	c.queueMutex.Unlock()
+
+	var newOutbox []*OutboxMessage
+	for _, msg := range c.outbox {
+		if msg.to == contact.id && !msg.revocation {
+			continue
+		}
+		newOutbox = append(newOutbox, msg)
+	}
+	c.outbox = newOutbox
+
+	c.Revoke(contact)
+
+	if contact.pandaShutdownChan != nil {
+		close(contact.pandaShutdownChan)
+	}
+
+	delete(c.contacts, contact.id)
+}
+
+func (c *Client) Revoke(to *Contact) *OutboxMessage {
+	to.revoked = true
+	revocation := c.groupPrivate.GenerateRevocation(to.groupKey)
+	now := time.Now()
+
+	groupCopy, _ := new(bbssig.Group).Unmarshal(c.groupPrivate.Group.Marshal())
+	groupPrivCopy, _ := new(bbssig.PrivateKey).Unmarshal(groupCopy, c.groupPrivate.Marshal())
+	c.prevGroupPrivs = append(c.prevGroupPrivs, PreviousGroupPrivateKey{
+		priv:    groupPrivCopy,
+		expired: now,
+	})
+
+	for _, contact := range c.contacts {
+		if contact == to {
+			continue
+		}
+		contact.previousTags = append(contact.previousTags, PreviousTag{
+			tag:     contact.groupKey.Tag(),
+			expired: now,
+		})
+		contact.groupKey.Update(revocation)
+	}
+
+	rev := &pond.SignedRevocation_Revocation{
+		Revocation: revocation.Marshal(),
+		Generation: proto.Uint32(c.generation),
+	}
+
+	c.groupPrivate.Group.Update(revocation)
+	c.generation++
+
+	revBytes, err := proto.Marshal(rev)
+	if err != nil {
+		panic(err)
+	}
+
+	var signed []byte
+	signed = append(signed, revocationSignaturePrefix...)
+	signed = append(signed, revBytes...)
+
+	sig := ed25519.Sign(&c.private, signed)
+
+	signedRev := pond.SignedRevocation{
+		Revocation: rev,
+		Signature:  sig[:],
+	}
+
+	request := &pond.Request{
+		Revocation: &signedRev,
+	}
+
+	out := &OutboxMessage{
+		revocation: true,
+		request:    request,
+		id:         randUInt64(),
+		server:     c.server.url, // revocations always go to the home server.
+		created:    time.Now(),
+	}
+	c.enqueue(out)
+	c.outbox = append(c.outbox, out)
+	return out
+}
